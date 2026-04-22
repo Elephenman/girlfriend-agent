@@ -1,0 +1,74 @@
+import os
+
+from git import Repo
+
+
+class GitManager:
+    def __init__(self, data_dir: str):
+        self.data_dir = data_dir
+        self.repo_path = data_dir
+
+    def init_repo(self) -> None:
+        if os.path.isdir(os.path.join(self.repo_path, ".git")):
+            return
+
+        repo = Repo.init(self.repo_path)
+
+        gitignore_path = os.path.join(self.repo_path, ".gitignore")
+        with open(gitignore_path, "w") as f:
+            f.write("chroma_db/\nsession_memory/\n")
+
+        # Create minimal config dir so initial commit has something
+        config_dir = os.path.join(self.repo_path, "config")
+        os.makedirs(config_dir, exist_ok=True)
+        settings_path = os.path.join(config_dir, "settings.json")
+        if not os.path.isfile(settings_path):
+            with open(settings_path, "w") as f:
+                f.write("{}\n")
+
+        repo.index.add([".gitignore", "config/settings.json"])
+        repo.index.commit("Lv0: initial state")
+
+    def commit(self, message: str) -> None:
+        repo = Repo(self.repo_path)
+
+        # Stage config/ and data/evolution_log/ only
+        for prefix in ["config", os.path.join("data", "evolution_log")]:
+            full_path = os.path.join(self.repo_path, prefix)
+            if os.path.isdir(full_path):
+                for root, _dirs, files in os.walk(full_path):
+                    for fname in files:
+                        rel = os.path.relpath(os.path.join(root, fname), self.repo_path)
+                        repo.index.add([rel.replace(os.sep, "/")])
+
+        if repo.is_dirty() or repo.index.diff("HEAD"):
+            repo.index.commit(message)
+
+    def log(self) -> list[dict]:
+        repo = Repo(self.repo_path)
+        result = []
+        for commit in repo.iter_commits():
+            result.append({
+                "hash": commit.hexsha,
+                "message": commit.message.strip(),
+                "date": commit.committed_datetime.isoformat(),
+            })
+        return result
+
+    def checkout(self, commit_hash: str) -> None:
+        repo = Repo(self.repo_path)
+        # Partial checkout: only config/ and data/evolution_log/
+        for prefix in ["config", os.path.join("data", "evolution_log")]:
+            full_path = os.path.join(self.repo_path, prefix)
+            if os.path.isdir(full_path):
+                # Check if this path exists in the target commit
+                try:
+                    repo.git.ls_tree(commit_hash, prefix.replace(os.sep, "/"))
+                    repo.git.checkout(commit_hash, "--", prefix.replace(os.sep, "/"))
+                except Exception:
+                    # Path doesn't exist in target commit, skip
+                    pass
+
+    def revert_last(self) -> None:
+        repo = Repo(self.repo_path)
+        repo.git.revert("HEAD", no_edit=True)
