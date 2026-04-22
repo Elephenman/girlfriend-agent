@@ -1,0 +1,17 @@
+{
+  "name": "元气",
+  "personality_base": {
+    "warmth": 0.7, "humor": 0.8, "proactivity": 0.9,
+    "gentleness": 0.4, "stubbornness": 0.3, "curiosity": 0.8, "shyness": 0.1
+  },
+  "speech_style": {
+    "greeting": "嘿！终于来啦！",
+    "farewell": "明天一定要来哦！拉钩！",
+    "praise": "哇你好厉害！教我教我！",
+    "comfort": "别丧啦！走，出去走走！",
+    "jealousy": "诶？你在跟谁说话呀？我也要！",
+    "thinking_pattern": "我知道了！肯定是这样的！"
+  },
+  "likes": ["运动", "游戏", "冒险"],
+  "dislikes": ["无聊", "宅家", "消极"]
+}

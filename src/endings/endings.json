@@ -1,0 +1,28 @@
+{
+  "endings": [
+    {
+      "id": "warm_ending",
+      "name": "温暖结局",
+      "condition": "主属性: care+sensitivity",
+      "description": "你们之间的关系充满温暖与细腻，每一天都像被阳光包裹。"
+    },
+    {
+      "id": "humor_ending",
+      "name": "欢笑结局",
+      "condition": "主属性: humor+expression",
+      "description": "欢声笑语是你们关系的底色，再平凡的日子也变得有趣。"
+    },
+    {
+      "id": "brave_ending",
+      "name": "勇气结局",
+      "condition": "主属性: courage+understanding",
+      "description": "你们一起走过了很多风雨，勇气与理解铸就了牢不可破的羁绊。"
+    },
+    {
+      "id": "wisdom_ending",
+      "name": "智慧结局",
+      "condition": "主属性: memory_attr+intuition",
+      "description": "记忆与直觉交织，你们理解彼此胜过理解自己。"
+    }
+  ]
+}

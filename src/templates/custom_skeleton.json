@@ -1,0 +1,17 @@
+{
+  "name": "自定义",
+  "personality_base": {
+    "warmth": 0.5, "humor": 0.5, "proactivity": 0.5,
+    "gentleness": 0.5, "stubbornness": 0.5, "curiosity": 0.5, "shyness": 0.5
+  },
+  "speech_style": {
+    "greeting": "",
+    "farewell": "",
+    "praise": "",
+    "comfort": "",
+    "jealousy": "",
+    "thinking_pattern": ""
+  },
+  "likes": [],
+  "dislikes": []
+}
