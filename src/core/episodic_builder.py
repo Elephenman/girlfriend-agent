@@ -194,7 +194,7 @@ class EpisodicBuilder:
         if not entity_id:
             return {"found": False, "entity": entity_name}
 
-        node = self.graph_engine.get_node(entity_id)
+        node = self.graph_engine.get_node(entity_id, touch=False)
         if not node:
             return {"found": False, "entity": entity_name}
 

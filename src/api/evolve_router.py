@@ -9,17 +9,20 @@ router = APIRouter()
 @router.post("/evolve")
 async def evolve(request: Request):
     app = request.app
+    evolve_engine = app.state.evolve_engine
+    memory_engine = app.state.memory_engine
+
+    # Phase 1: Pure reads outside lock (session loading is IO-heavy)
+    sessions = memory_engine.load_recent_sessions(count=7)
+    if len(sessions) < 1:
+        sessions = [SessionMemory(conversation_id="auto", interaction_type="daily_chat")]
+
+    # Phase 2: State mutation under lock
     async with app.state.state_lock:
-        evolve_engine = app.state.evolve_engine
-        memory_engine = app.state.memory_engine
         relationship = app.state.relationship
-
-        sessions = memory_engine.load_recent_sessions(count=7)
-        if len(sessions) < 1:
-            sessions = [SessionMemory(conversation_id="auto", interaction_type="daily_chat")]
-
         relationship, log_entry = evolve_engine.run_evolution_cycle(sessions, relationship)
 
+        # Commit state mutation and persist
         app.state.relationship = relationship
         app.state.state_manager.persist_relationship(app)
 

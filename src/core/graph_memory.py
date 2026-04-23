@@ -70,15 +70,12 @@ class GraphMemoryEngine:
             created_date=now,
         )
 
-    def get_node(self, node_id: str) -> GraphNode | None:
-        """获取节点"""
+    def get_node_info(self, node_id: str) -> GraphNode | None:
+        """获取节点信息（纯查询，无副作用）"""
         if node_id not in self.graph:
             return None
         data = self.graph.nodes[node_id]
         now = datetime.now().strftime("%Y-%m-%d")
-        # 更新访问
-        data["access_count"] = data.get("access_count", 0) + 1
-        data["last_accessed"] = now
         return GraphNode(
             node_id=node_id,
             node_type=data.get("node_type", "entity"),
@@ -89,6 +86,30 @@ class GraphMemoryEngine:
             last_accessed=data.get("last_accessed", now),
             access_count=data.get("access_count", 0),
         )
+
+    def touch_node(self, node_id: str) -> None:
+        """更新节点访问计数和最后访问时间（副作用操作）"""
+        if node_id not in self.graph:
+            return
+        data = self.graph.nodes[node_id]
+        data["access_count"] = data.get("access_count", 0) + 1
+        data["last_accessed"] = datetime.now().strftime("%Y-%m-%d")
+
+    def get_node(self, node_id: str, touch: bool = True) -> GraphNode | None:
+        """获取节点信息，可选更新访问计数（向后兼容接口）
+
+        Args:
+            node_id: Node identifier.
+            touch: If True, update access_count and last_accessed (original behavior).
+                   If False, pure query without side effects.
+
+        Default touch=True maintains backward compatibility with original get_node behavior.
+        """
+        result = self.get_node_info(node_id)
+        if result is not None and touch:
+            self.touch_node(node_id)
+            result = self.get_node_info(node_id)  # re-read to reflect updated values
+        return result
 
     def search_graph(
         self, query: str, max_depth: int = 3, max_nodes: int = 20
@@ -274,6 +295,9 @@ class GraphMemoryEngine:
 
     def decay_graph_weights(self) -> None:
         """图节点/边权重衰减"""
+        import time
+        start_time = time.monotonic()
+
         decay_lambda = self.config.WEIGHT_DECAY_LAMBDA
         now = datetime.now()
         for nid, data in self.graph.nodes(data=True):
@@ -289,6 +313,12 @@ class GraphMemoryEngine:
         for u, v, data in self.graph.edges(data=True):
             old_weight = data.get("weight", 1.0)
             data["weight"] = max(old_weight * 0.95, 0.01)
+
+        elapsed = time.monotonic() - start_time
+        logger.info(
+            "decay_graph_weights completed in %.2fs, %d nodes, %d edges",
+            elapsed, self.graph.number_of_nodes(), self.graph.number_of_edges(),
+        )
 
     def reinforce_path(
         self, path_node_ids: list[str], strength: float = 0.1

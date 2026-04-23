@@ -179,3 +179,102 @@ class TestLoadOrInitStateSelfHeal:
         relationship = sm.load_or_init_relationship()
         assert persona.personality_base.warmth == 0.9
         assert relationship.current_level == 2
+
+
+class TestChatService:
+    def test_mutate_state_updates_intimacy(self, setup_test_env):
+        """Verify intimacy is updated according to interaction type"""
+        from src.core.chat_service import ChatService
+        from src.core.models import ChatRequest
+
+        req = ChatRequest(user_message="hello", interaction_type="daily_chat", level=1)
+        initial_rel = RelationshipState()
+        app_state = app.state
+        chat_service = ChatService(
+            persona_engine=app_state.persona_engine,
+            memory_engine=app_state.memory_engine,
+            evolve_engine=app_state.evolve_engine,
+            graph_engine=app_state.graph_engine,
+        )
+        result = chat_service.mutate_state(req, app_state.persona, initial_rel)
+        # intimacy_points should increase by 1 (daily_chat gain)
+        assert result.intimacy_points > initial_rel.intimacy_points
+
+    def test_build_context_returns_expected_keys(self, setup_test_env):
+        """Verify result dict contains all expected keys"""
+        from src.core.chat_service import ChatService
+        from src.core.models import ChatRequest
+
+        req = ChatRequest(user_message="hello", level=1)
+        app_state = app.state
+        chat_service = ChatService(
+            persona_engine=app_state.persona_engine,
+            memory_engine=app_state.memory_engine,
+            evolve_engine=app_state.evolve_engine,
+            graph_engine=app_state.graph_engine,
+        )
+        ctx = chat_service.build_context(req, app_state.persona, RelationshipState())
+        assert "full_prompt" in ctx
+        assert "rel_summary" in ctx
+        assert "memory_ctx" in ctx
+        assert "de_ai_instructions" in ctx
+
+
+class TestGraphRouterPydanticValidation:
+    @pytest.mark.anyio
+    async def test_add_entity_empty_name_rejected(self, setup_test_env):
+        transport = ASGITransport(app=app)
+        async with AsyncClient(transport=transport, base_url="http://test") as client:
+            r = await client.post("/graph/add-entity", json={"entity_name": ""})
+            assert r.status_code == 422
+
+    @pytest.mark.anyio
+    async def test_add_entity_invalid_type_rejected(self, setup_test_env):
+        transport = ASGITransport(app=app)
+        async with AsyncClient(transport=transport, base_url="http://test") as client:
+            r = await client.post("/graph/add-entity", json={"entity_name": "test", "entity_type": "invalid"})
+            assert r.status_code == 422
+
+    @pytest.mark.anyio
+    async def test_add_relation_empty_source_rejected(self, setup_test_env):
+        transport = ASGITransport(app=app)
+        async with AsyncClient(transport=transport, base_url="http://test") as client:
+            r = await client.post("/graph/add-relation", json={"source_entity": "", "target_entity": "ok"})
+            assert r.status_code == 422
+
+    @pytest.mark.anyio
+    async def test_add_relation_invalid_type_rejected(self, setup_test_env):
+        transport = ASGITransport(app=app)
+        async with AsyncClient(transport=transport, base_url="http://test") as client:
+            r = await client.post("/graph/add-relation", json={
+                "source_entity": "a", "target_entity": "b", "relation_type": "invalid"
+            })
+            assert r.status_code == 422
+
+    @pytest.mark.anyio
+    async def test_search_empty_query_rejected(self, setup_test_env):
+        transport = ASGITransport(app=app)
+        async with AsyncClient(transport=transport, base_url="http://test") as client:
+            r = await client.post("/graph/search", json={"query": ""})
+            assert r.status_code == 422
+
+    @pytest.mark.anyio
+    async def test_search_excessive_max_nodes_rejected(self, setup_test_env):
+        transport = ASGITransport(app=app)
+        async with AsyncClient(transport=transport, base_url="http://test") as client:
+            r = await client.post("/graph/search", json={"query": "test", "max_nodes": 200})
+            assert r.status_code == 422
+
+    @pytest.mark.anyio
+    async def test_reinforce_empty_chunk_id_rejected(self, setup_test_env):
+        transport = ASGITransport(app=app)
+        async with AsyncClient(transport=transport, base_url="http://test") as client:
+            r = await client.post("/memory/reinforce", json={"chunk_id": ""})
+            assert r.status_code == 422
+
+    @pytest.mark.anyio
+    async def test_emotion_trend_invalid_count_rejected(self, setup_test_env):
+        transport = ASGITransport(app=app)
+        async with AsyncClient(transport=transport, base_url="http://test") as client:
+            r = await client.post("/memory/emotion-trend", json={"count": 0})
+            assert r.status_code == 422

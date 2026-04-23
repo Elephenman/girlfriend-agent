@@ -86,6 +86,40 @@ class TestGetNode:
         assert node is None
 
 
+class TestGetNodeInfoAndTouch:
+    def test_get_node_info_no_side_effect(self, graph_engine):
+        node_id = graph_engine.add_node("n1", "entity", "test")
+        info1 = graph_engine.get_node_info(node_id)
+        info2 = graph_engine.get_node_info(node_id)
+        assert info1.access_count == info2.access_count
+
+    def test_touch_node_updates_access(self, graph_engine):
+        node_id = graph_engine.add_node("n1", "entity", "test")
+        graph_engine.touch_node(node_id)
+        info = graph_engine.get_node_info(node_id)
+        assert info.access_count == 1
+
+    def test_touch_node_nonexistent(self, graph_engine):
+        # Should not raise, just silently return
+        graph_engine.touch_node("nonexistent")
+
+    def test_get_node_with_touch_true(self, graph_engine):
+        node_id = graph_engine.add_node("n1", "entity", "test")
+        result = graph_engine.get_node(node_id, touch=True)
+        assert result.access_count == 1
+
+    def test_get_node_with_touch_false(self, graph_engine):
+        node_id = graph_engine.add_node("n1", "entity", "test")
+        result = graph_engine.get_node(node_id, touch=False)
+        assert result.access_count == 0
+
+    def test_get_node_default_is_touch_true(self, graph_engine):
+        """Verify backward compatibility: default get_node behavior is touch=True"""
+        node_id = graph_engine.add_node("n1", "entity", "test")
+        result = graph_engine.get_node(node_id)  # no touch arg
+        assert result.access_count == 1  # same as old behavior
+
+
 class TestSearchGraph:
     def test_search_finds_matching_nodes(self, graph_engine):
         graph_engine.add_node("cat_01", "entity", "小猫")

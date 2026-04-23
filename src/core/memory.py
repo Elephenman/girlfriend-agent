@@ -145,6 +145,9 @@ class MemoryEngine:
 
     def decay_all_weights(self) -> None:
         """基于真实天数的精确衰减（预验证 + 批量更新 + 错误容忍）"""
+        import time
+        start_time = time.monotonic()
+
         if self.collection.count() == 0:
             return
 
@@ -197,6 +200,12 @@ class MemoryEngine:
                     self.collection.update(ids=[chunk_id], metadatas=[meta])
                 except Exception as item_err:
                     logging.warning("Failed to decay chunk %s: %s", chunk_id, item_err)
+
+        elapsed = time.monotonic() - start_time
+        logging.info(
+            "decay_all_weights completed in %.2fs, %d valid, %d skipped, total=%d",
+            elapsed, len(valid_ids), skipped, len(all_ids),
+        )
 
     def save_session(self, session: SessionMemory) -> None:
         path = os.path.join(

@@ -18,6 +18,7 @@ from src.api.chat_router import router as chat_router
 from src.api.status_router import router as status_router
 from src.api.evolve_router import router as evolve_router
 from src.api.memory_router import router as memory_router
+from src.api.graph_router import router as graph_router
 from src.api.persona_router import router as persona_router
 from src.api.rollback_router import router as rollback_router
 
@@ -61,6 +62,7 @@ app.include_router(chat_router, tags=["chat"])
 app.include_router(status_router, tags=["status"])
 app.include_router(evolve_router, tags=["evolve"])
 app.include_router(memory_router, tags=["memory"])
+app.include_router(graph_router, tags=["graph"])
 app.include_router(persona_router, tags=["persona"])
 app.include_router(rollback_router, tags=["rollback"])
 
