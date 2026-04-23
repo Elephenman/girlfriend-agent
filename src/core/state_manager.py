@@ -43,3 +43,23 @@ class StateManager:
     def persist_relationship(self, app) -> None:
         """Write current app.state.relationship to disk"""
         self.save_relationship(app.state.relationship)
+
+    def load_or_init_persona(self) -> PersonaConfig:
+        """Load persona from disk; if file missing, create default and persist (self-heal)"""
+        path = self.config.persona_config_path
+        if os.path.isfile(path):
+            with open(path, encoding="utf-8") as f:
+                return PersonaConfig(**json.load(f))
+        persona = PersonaConfig()
+        self.save_persona(persona)
+        return persona
+
+    def load_or_init_relationship(self) -> RelationshipState:
+        """Load relationship from disk; if file missing, create default and persist (self-heal)"""
+        path = self.config.relationship_config_path
+        if os.path.isfile(path):
+            with open(path, encoding="utf-8") as f:
+                return RelationshipState(**json.load(f))
+        relationship = RelationshipState()
+        self.save_relationship(relationship)
+        return relationship

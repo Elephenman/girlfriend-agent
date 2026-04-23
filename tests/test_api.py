@@ -1,4 +1,5 @@
 # tests/test_api.py
+import asyncio
 import json
 import os
 import tempfile
@@ -8,7 +9,8 @@ from httpx import ASGITransport, AsyncClient
 
 from src.core.config import Config
 from src.core.models import PersonaConfig, PersonalityBase, RelationshipState
-from src.engine_server import app, _load_or_init_state, _save_state
+from src.core.state_manager import StateManager
+from src.engine_server import app
 
 
 @pytest.fixture
@@ -17,27 +19,36 @@ def setup_test_env():
     try:
         config = Config(data_dir=os.path.join(td.name, "gf-agent"))
         config.ensure_dirs()
-        _save_state(config, PersonaConfig(), RelationshipState())
 
         from src.core.git_manager import GitManager
         from src.core.persona import PersonaEngine
         from src.core.memory import MemoryEngine
         from src.core.evolve import EvolveEngine
-        from src.core.state_manager import StateManager
+        from src.core.graph_memory import GraphMemoryEngine
+        from src.core.episodic_builder import EpisodicBuilder
 
         git_mgr = GitManager(data_dir=config.data_dir)
         git_mgr.init_repo()
 
         state_mgr = StateManager(config)
+        # Use load_or_init to self-heal and persist defaults
+        persona = state_mgr.load_or_init_persona()
+        relationship = state_mgr.load_or_init_relationship()
+
+        graph_engine = GraphMemoryEngine(config)
+        episodic_builder = EpisodicBuilder(config, graph_engine)
 
         app.state.config = config
-        app.state.persona = PersonaConfig()
-        app.state.relationship = RelationshipState()
+        app.state.persona = persona
+        app.state.relationship = relationship
         app.state.persona_engine = PersonaEngine(config)
         app.state.memory_engine = MemoryEngine(config)
         app.state.evolve_engine = EvolveEngine(config, git_mgr)
         app.state.git_manager = git_mgr
         app.state.state_manager = state_mgr
+        app.state.state_lock = asyncio.Lock()
+        app.state.graph_engine = graph_engine
+        app.state.episodic_builder = episodic_builder
 
         yield config
     finally:
@@ -127,7 +138,8 @@ class TestLoadOrInitStateSelfHeal:
         # Create relationship.json only
         with open(config.relationship_config_path, "w", encoding="utf-8") as f:
             json.dump(RelationshipState().model_dump(), f)
-        persona, relationship = _load_or_init_state(config)
+        sm = StateManager(config)
+        persona = sm.load_or_init_persona()
         # persona.json should now exist (self-healed)
         assert os.path.isfile(config.persona_config_path)
         assert isinstance(persona, PersonaConfig)
@@ -138,14 +150,17 @@ class TestLoadOrInitStateSelfHeal:
         # Create persona.json only
         with open(config.persona_config_path, "w", encoding="utf-8") as f:
             json.dump(PersonaConfig().model_dump(), f)
-        persona, relationship = _load_or_init_state(config)
+        sm = StateManager(config)
+        relationship = sm.load_or_init_relationship()
         assert os.path.isfile(config.relationship_config_path)
         assert isinstance(relationship, RelationshipState)
 
     def test_both_missing_creates_both(self, temp_data_dir):
         config = Config(data_dir=temp_data_dir)
         config.ensure_dirs()
-        persona, relationship = _load_or_init_state(config)
+        sm = StateManager(config)
+        persona = sm.load_or_init_persona()
+        relationship = sm.load_or_init_relationship()
         assert os.path.isfile(config.persona_config_path)
         assert os.path.isfile(config.relationship_config_path)
 
@@ -159,6 +174,8 @@ class TestLoadOrInitStateSelfHeal:
         custom_rel = RelationshipState(current_level=2, intimacy_points=30)
         with open(config.relationship_config_path, "w", encoding="utf-8") as f:
             json.dump(custom_rel.model_dump(), f)
-        persona, relationship = _load_or_init_state(config)
+        sm = StateManager(config)
+        persona = sm.load_or_init_persona()
+        relationship = sm.load_or_init_relationship()
         assert persona.personality_base.warmth == 0.9
         assert relationship.current_level == 2

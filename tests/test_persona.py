@@ -130,3 +130,40 @@ class TestPersonaEngineUpdateField:
         persona_engine.update_persona_field("likes", ["新爱好"])
         result = persona_engine.load_persona()
         assert "新爱好" in result.likes
+
+    def test_update_nested_field(self, persona_engine, temp_data_dir):
+        persona_engine.apply_template("default")
+        persona_engine.update_persona_field("personality_base.warmth", 0.9)
+        result = persona_engine.load_persona()
+        assert result.personality_base.warmth == 0.9
+
+
+class TestUpdatePersonaFieldPreValidate:
+    def test_invalid_value_does_not_mutate_persona_object(self, temp_data_dir):
+        """Verify that a type-mismatch value doesn't leave persona in illegal state"""
+        config = Config(data_dir=temp_data_dir)
+        config.ensure_dirs()
+        from src.core.state_manager import StateManager
+        state_mgr = StateManager(config)
+        state_mgr.save_persona(PersonaConfig())
+        persona_engine = PersonaEngine(config)
+
+        with pytest.raises(Exception):
+            persona_engine.update_persona_field("personality_base.warmth", "not_a_float")
+
+        # persona.json should still contain original valid value
+        loaded = persona_engine.load_persona()
+        assert isinstance(loaded.personality_base.warmth, float)
+
+    def test_valid_value_with_type_coercion(self, temp_data_dir):
+        """Verify that int->float coercion works correctly via pre-validation"""
+        config = Config(data_dir=temp_data_dir)
+        config.ensure_dirs()
+        from src.core.state_manager import StateManager
+        state_mgr = StateManager(config)
+        state_mgr.save_persona(PersonaConfig())
+        persona_engine = PersonaEngine(config)
+
+        # warmth is float field, passing int 1 should be coerced to 1.0
+        result = persona_engine.update_persona_field("personality_base.warmth", 1)
+        assert result.personality_base.warmth == 1.0  # coerced to float

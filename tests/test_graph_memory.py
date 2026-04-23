@@ -354,3 +354,25 @@ class TestLazyGraphLoading:
         # Accessing .graph triggers lazy load
         _ = engine.graph
         assert engine._graph is not None
+
+
+class TestFindNodeByLabelImproved:
+    def test_exact_match_preferred_over_fuzzy(self, graph_engine):
+        """Searching for '猫' should match node labeled '猫' before '小猫咪'"""
+        graph_engine.add_node("cat_1", "entity", "猫")
+        graph_engine.add_node("cat_2", "entity", "小猫咪")
+        result = graph_engine._find_node_by_label("猫")
+        assert result == "cat_1"
+
+    def test_fuzzy_match_prefers_shortest_label_diff(self, graph_engine):
+        """When no exact match, prefer closest label by length"""
+        graph_engine.add_node("e1", "entity", "小猫咪超级猫")
+        graph_engine.add_node("e2", "entity", "小猫咪")
+        result = graph_engine._find_node_by_label("猫")
+        # "小猫咪" has length_diff 2, "小猫咪超级猫" has length_diff 5
+        assert result == "e2"
+
+    def test_no_match_returns_none(self, graph_engine):
+        graph_engine.add_node("e1", "entity", "狗")
+        result = graph_engine._find_node_by_label("猫")
+        assert result is None

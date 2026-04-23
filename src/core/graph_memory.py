@@ -352,11 +352,25 @@ class GraphMemoryEngine:
         }
 
     def _find_node_by_label(self, label: str) -> str | None:
-        """通过标签模糊查找节点ID"""
+        """通过标签查找节点ID - 确匹配优先，模糊匹配按相似度排序"""
         label_lower = label.lower()
+
+        # 1. Exact match (highest priority)
         for nid, data in self.graph.nodes(data=True):
             if data.get("label", "").lower() == label_lower:
                 return nid
-            if label_lower in data.get("label", "").lower():
-                return nid
+
+        # 2. Fuzzy match: collect all substring matches, sort by label length diff
+        # Shorter difference = closer match (e.g., "猫" prefers "猫" over "小猫咪")
+        candidates: list[tuple[int, str]] = []
+        for nid, data in self.graph.nodes(data=True):
+            node_label = data.get("label", "").lower()
+            if label_lower in node_label:
+                length_diff = abs(len(node_label) - len(label_lower))
+                candidates.append((length_diff, nid))
+
+        if candidates:
+            candidates.sort(key=lambda x: x[0])
+            return candidates[0][1]
+
         return None

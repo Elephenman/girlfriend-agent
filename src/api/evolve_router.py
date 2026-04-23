@@ -9,19 +9,19 @@ router = APIRouter()
 @router.post("/evolve")
 async def evolve(request: Request):
     app = request.app
-    evolve_engine = app.state.evolve_engine
-    memory_engine = app.state.memory_engine
-    relationship = app.state.relationship
+    async with app.state.state_lock:
+        evolve_engine = app.state.evolve_engine
+        memory_engine = app.state.memory_engine
+        relationship = app.state.relationship
 
-    sessions = memory_engine.load_recent_sessions(count=7)
+        sessions = memory_engine.load_recent_sessions(count=7)
+        if len(sessions) < 1:
+            sessions = [SessionMemory(conversation_id="auto", interaction_type="daily_chat")]
 
-    if len(sessions) < 1:
-        sessions = [SessionMemory(conversation_id="auto", interaction_type="daily_chat")]
+        relationship, log_entry = evolve_engine.run_evolution_cycle(sessions, relationship)
 
-    relationship, log_entry = evolve_engine.run_evolution_cycle(sessions, relationship)
-
-    app.state.relationship = relationship
-    app.state.state_manager.persist_relationship(app)
+        app.state.relationship = relationship
+        app.state.state_manager.persist_relationship(app)
 
     return {
         "adjustments": log_entry.adjustments,
@@ -39,7 +39,8 @@ async def revert_evolution(request: Request):
     result = evolve_engine.revert_last_evolution()
 
     if result["success"]:
-        request.app.state.state_manager.reload_all(request.app)
+        async with request.app.state.state_lock:
+            request.app.state.state_manager.reload_all(request.app)
 
     return result
 
@@ -54,7 +55,8 @@ async def revert_to_version(request: Request):
     result = evolve_engine.revert_to_version(commit_hash)
 
     if result["success"]:
-        request.app.state.state_manager.reload_all(request.app)
+        async with request.app.state.state_lock:
+            request.app.state.state_manager.reload_all(request.app)
 
     return result
 

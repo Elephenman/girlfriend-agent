@@ -57,10 +57,13 @@ class Config:
         3: {"max_memories": 15, "approx_chars": 5000, "include_graph": True, "graph_depth": 3},
     }
 
-    def __init__(self, data_dir: str | None = None):
+    MAX_SESSION_FILES = 500  # Safety limit for session file scanning
+
+    def __init__(self, data_dir: str | None = None, max_session_files: int | None = None):
         if data_dir is None:
             data_dir = os.path.join(str(Path.home()), self.DATA_DIR_NAME)
         self.data_dir = data_dir
+        self.max_session_files = max_session_files if max_session_files is not None else self.MAX_SESSION_FILES
 
     @property
     def chroma_db_dir(self) -> str:

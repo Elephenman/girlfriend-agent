@@ -144,7 +144,7 @@ class MemoryEngine:
         return math.sqrt(access_count + 1) * math.exp(-decay_lambda * days)
 
     def decay_all_weights(self) -> None:
-        """基于真实天数的精确衰减（批量更新替代逐条更新）"""
+        """基于真实天数的精确衰减（预验证 + 批量更新 + 错误容忍）"""
         if self.collection.count() == 0:
             return
 
@@ -153,18 +153,50 @@ class MemoryEngine:
         all_metas = all_data["metadatas"]
         now = datetime.now()
 
-        for meta in all_metas:
+        # Pre-validate metadata before batch update
+        valid_ids = []
+        valid_metas = []
+        skipped = 0
+
+        for i, (chunk_id, meta) in enumerate(zip(all_ids, all_metas)):
             created = meta.get("created_date", now.strftime("%Y-%m-%d"))
             try:
                 days = (now - datetime.strptime(created, "%Y-%m-%d")).days
             except ValueError:
                 days = 0
+
             access_count = int(meta.get("access_count", "0"))
             new_weight = self.compute_weight(days=days, access_count=access_count)
             meta["weight"] = str(max(new_weight, 0.01))
 
-        # Single batch update instead of N individual updates
-        self.collection.update(ids=all_ids, metadatas=all_metas)
+            # Validate metadata fields are well-formed
+            try:
+                float(meta["weight"])
+                int(meta.get("access_count", "0"))
+                valid_ids.append(chunk_id)
+                valid_metas.append(meta)
+            except (ValueError, TypeError, KeyError) as e:
+                skipped += 1
+                logging.warning(
+                    "Skipping invalid metadata for chunk %s: %s", chunk_id, e
+                )
+
+        if skipped:
+            logging.warning("decay_all_weights: skipped %d invalid chunks out of %d", skipped, len(all_ids))
+
+        if not valid_ids:
+            return
+
+        # Try batch update first; fall back to per-item updates on failure
+        try:
+            self.collection.update(ids=valid_ids, metadatas=valid_metas)
+        except Exception as e:
+            logging.warning("Batch decay update failed (%s), falling back to per-item updates", e)
+            for chunk_id, meta in zip(valid_ids, valid_metas):
+                try:
+                    self.collection.update(ids=[chunk_id], metadatas=[meta])
+                except Exception as item_err:
+                    logging.warning("Failed to decay chunk %s: %s", chunk_id, item_err)
 
     def save_session(self, session: SessionMemory) -> None:
         path = os.path.join(
@@ -174,8 +206,6 @@ class MemoryEngine:
         with open(path, "w", encoding="utf-8") as f:
             json.dump(session.model_dump(), f, ensure_ascii=False, indent=2)
 
-    MAX_SESSION_FILES = 500  # Safety limit for file scanning
-
     def load_recent_sessions(self, count: int = 10) -> list[SessionMemory]:
         sm_dir = self.config.session_memory_dir
         if not os.path.isdir(sm_dir):
@@ -183,14 +213,20 @@ class MemoryEngine:
 
         # Safety: limit number of files scanned to prevent memory/time blow-up
         json_files = [f for f in os.listdir(sm_dir) if f.endswith(".json")]
-        if len(json_files) > self.MAX_SESSION_FILES:
+        max_files = self.config.max_session_files  # Configurable via Config
+
+        if len(json_files) > max_files:
             logging.warning(
-                "Session directory has %d files (limit %d). Only scanning newest by filename.",
-                len(json_files), self.MAX_SESSION_FILES,
+                "Session directory has %d files (limit %d). Pre-filtering by mtime.",
+                len(json_files), max_files,
             )
-            # Rough pre-filter: sort by filename (often contains timestamp) descending
-            json_files.sort(reverse=True)
-            json_files = json_files[:self.MAX_SESSION_FILES]
+            # Sort by file modification time as fallback (more reliable than filename)
+            json_files_with_mtime = [
+                (f, os.path.getmtime(os.path.join(sm_dir, f)))
+                for f in json_files
+            ]
+            json_files_with_mtime.sort(key=lambda x: x[1], reverse=True)
+            json_files = [f for f, _ in json_files_with_mtime[:max_files]]
 
         sessions = []
         for fname in json_files:
