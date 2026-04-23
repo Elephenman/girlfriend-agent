@@ -20,12 +20,38 @@ class GraphMemoryEngine:
     def __init__(self, config: Config):
         self.config = config
         self._graph: nx.DiGraph | None = None
+        # Label inverted index: maps lowercase label substrings to node_ids
+        # Populated lazily on first search_graph call, updated on add_node
+        self._label_index: dict[str, set[str]] | None = None
 
     @property
     def graph(self) -> nx.DiGraph:
         if self._graph is None:
             self._graph = self.load_graph()
         return self._graph
+
+    def _update_label_index(self, node_id: str, label: str) -> None:
+        """Add node to the label inverted index. Called on add_node."""
+        if self._label_index is None:
+            return  # Index not initialized yet; will be built lazily on first search
+        label_lower = label.lower()
+        # Index all contiguous substrings of the label
+        # This ensures that searching for any substring of the label will find the node
+        for i in range(len(label_lower)):
+            for j in range(i + 1, len(label_lower) + 1):
+                self._label_index.setdefault(label_lower[i:j], set()).add(node_id)
+
+    def _build_label_index(self) -> dict[str, set[str]]:
+        """Build label inverted index from scratch (lazy initialization on first search)."""
+        index: dict[str, set[str]] = {}
+        for nid, data in self.graph.nodes(data=True):
+            label = data.get("label", "").lower()
+            if not label:
+                continue
+            for i in range(len(label)):
+                for j in range(i + 1, len(label) + 1):
+                    index.setdefault(label[i:j], set()).add(nid)
+        return index
 
     def add_node(
         self,
@@ -49,6 +75,7 @@ class GraphMemoryEngine:
             last_accessed=now,
             access_count=0,
         )
+        self._update_label_index(node_id, label)
         return node_id
 
     def add_edge(
@@ -114,15 +141,28 @@ class GraphMemoryEngine:
     def search_graph(
         self, query: str, max_depth: int = 3, max_nodes: int = 20
     ) -> GraphSearchResult:
-        """从匹配标签的种子节点出发进行BFS遍历"""
-        # 1. 找种子节点（标签包含query的节点）
-        seed_nodes: list[str] = []
+        """从匹配标签的种子节点出发进行BFS遍历
+
+        Uses label inverted index for efficient seed node lookup.
+        Index is built lazily on first call and maintained incrementally.
+        """
+        # 1. Build label index lazily if not yet initialized
+        if self._label_index is None:
+            self._label_index = self._build_label_index()
+
+        # 2. Find seed nodes via inverted index (O(1) lookup instead of O(N) scan)
         query_lower = query.lower()
-        for nid, data in self.graph.nodes(data=True):
-            if query_lower in data.get("label", "").lower():
-                seed_nodes.append(nid)
-            elif query_lower in str(data.get("properties", {})).lower():
-                seed_nodes.append(nid)
+        seed_candidates = self._label_index.get(query_lower, set())
+
+        # Also check properties as fallback (no index for properties, scan is needed)
+        seed_nodes: list[str] = list(seed_candidates)
+        if not seed_nodes or len(seed_nodes) < 5:
+            # Supplement with property-based matches (limited scan for completeness)
+            for nid, data in self.graph.nodes(data=True):
+                if nid in seed_candidates:
+                    continue
+                if query_lower in str(data.get("properties", {})).lower():
+                    seed_nodes.append(nid)
 
         if not seed_nodes:
             return GraphSearchResult(

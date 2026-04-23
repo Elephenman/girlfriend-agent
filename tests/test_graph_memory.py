@@ -410,3 +410,61 @@ class TestFindNodeByLabelImproved:
         graph_engine.add_node("e1", "entity", "狗")
         result = graph_engine._find_node_by_label("猫")
         assert result is None
+
+
+class TestLabelInvertedIndex:
+    """Verify label inverted index accelerates seed node lookup in search_graph"""
+
+    def test_search_graph_uses_index_for_seed_nodes(self, graph_engine):
+        """search_graph should find seed nodes via inverted index, not full scan"""
+        graph_engine.add_node("cat_01", "entity", "小猫咪")
+        graph_engine.add_node("dog_01", "entity", "小狗")
+        result = graph_engine.search_graph("猫")
+        node_ids = {n.node_id for n in result.nodes}
+        assert "cat_01" in node_ids
+        assert "dog_01" not in node_ids
+
+    def test_index_built_lazily_on_first_search(self, graph_engine):
+        """Label index should be None before first search, then built lazily"""
+        assert graph_engine._label_index is None
+        graph_engine.add_node("cat_01", "entity", "猫")
+        # Still None before first search
+        assert graph_engine._label_index is None
+        # Triggers lazy build
+        result = graph_engine.search_graph("猫")
+        assert graph_engine._label_index is not None
+        assert len(result.nodes) > 0
+
+    def test_index_updated_incrementally_after_build(self, graph_engine):
+        """After initial index build, new nodes should be added incrementally"""
+        graph_engine.add_node("cat_01", "entity", "猫")
+        # Build the index via first search
+        graph_engine.search_graph("猫")
+        assert graph_engine._label_index is not None
+
+        # Add a new node - should update index incrementally
+        graph_engine.add_node("dog_01", "entity", "小狗")
+        # dog should appear in index
+        assert "dog_01" in graph_engine._label_index.get("小狗", set())
+
+        # Search for new node should find it
+        result = graph_engine.search_graph("小狗")
+        node_ids = {n.node_id for n in result.nodes}
+        assert "dog_01" in node_ids
+
+    def test_index_handles_chinese_substring_matching(self, graph_engine):
+        """Index should support substring matching for Chinese labels"""
+        graph_engine.add_node("e1", "entity", "小猫咪")
+        graph_engine.search_graph("猫")  # trigger index build
+        # "猫" should match "小猫咪" via substring in index
+        result = graph_engine.search_graph("猫")
+        node_ids = {n.node_id for n in result.nodes}
+        assert "e1" in node_ids
+
+    def test_search_graph_with_empty_graph_returns_no_results(self, graph_engine):
+        """Search on empty graph should return empty result"""
+        result = graph_engine.search_graph("anything")
+        assert len(result.nodes) == 0
+        assert result.context_summary == "未找到相关图谱节点"
+        # Index should have been built (empty but not None)
+        assert graph_engine._label_index is not None

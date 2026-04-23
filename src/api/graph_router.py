@@ -58,18 +58,27 @@ class GraphBatchBuildRequest(BaseModel):
 
 @router.post("/graph/add-entity")
 async def graph_add_entity(req: GraphAddEntityRequest, request: Request):
+    """Idempotent: if entity_name already exists, merges properties instead of creating duplicate."""
     builder = request.app.state.episodic_builder
-    node_id = builder.add_entity(req.entity_name, req.entity_type, req.properties)
     graph_engine = request.app.state.graph_engine
+    # Check if entity already exists before adding
+    existing_id = builder._find_entity(req.entity_name)
+    if existing_id:
+        # Merge properties into existing node (add_entity does this internally)
+        node_id = builder.add_entity(req.entity_name, req.entity_type, req.properties)
+        graph_engine.save_graph()
+        return {"status": "ok", "node_id": node_id, "created": False}
+    node_id = builder.add_entity(req.entity_name, req.entity_type, req.properties)
     graph_engine.save_graph()
-    return {"status": "ok", "node_id": node_id}
+    return {"status": "ok", "node_id": node_id, "created": True}
 
 
 @router.post("/graph/add-relation")
 async def graph_add_relation(req: GraphAddRelationRequest, request: Request):
+    """Idempotent: if source-target-relation triple already exists, strengthens weight instead of adding duplicate edge."""
     builder = request.app.state.episodic_builder
-    success = builder.add_relation(req.source_entity, req.target_entity, req.relation_type, req.properties)
     graph_engine = request.app.state.graph_engine
+    success = builder.add_relation(req.source_entity, req.target_entity, req.relation_type, req.properties)
     graph_engine.save_graph()
     return {"status": "ok" if success else "error"}
 

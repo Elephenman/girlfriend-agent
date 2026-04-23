@@ -1,5 +1,16 @@
 # src/core/chat_service.py
+from typing import TypedDict
+
 from src.core.models import ChatRequest, PersonaConfig, RelationshipState
+
+
+class ChatContext(TypedDict):
+    """Typed return for ChatService.build_context() - eliminates string-key access errors."""
+
+    full_prompt: str
+    rel_summary: str
+    memory_ctx: dict
+    de_ai_instructions: str
 
 
 class ChatService:
@@ -35,7 +46,7 @@ class ChatService:
 
     def build_context(
         self, request: ChatRequest, persona: PersonaConfig, relationship: RelationshipState
-    ) -> dict:
+    ) -> ChatContext:
         """Phase 2: Build prompt context (called outside lock).
 
         Uses committed relationship snapshot for all reads.

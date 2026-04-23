@@ -1,7 +1,7 @@
 # src/api/chat_router.py
 from fastapi import APIRouter, Request
 
-from src.core.chat_service import ChatService
+from src.core.chat_service import ChatContext, ChatService
 from src.core.models import ChatRequest, ChatResponse
 
 router = APIRouter()
@@ -27,7 +27,7 @@ async def chat(req: ChatRequest, request: Request):
         app.state.state_manager.persist_relationship(app)
 
     # Phase 2: Build context outside lock (using committed snapshot)
-    ctx = chat_service.build_context(req, app.state.persona, relationship)
+    ctx: ChatContext = chat_service.build_context(req, app.state.persona, relationship)
 
     # Phase 3: Build response
     return ChatResponse(

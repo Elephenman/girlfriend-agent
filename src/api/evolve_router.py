@@ -66,14 +66,22 @@ async def revert_to_version(request: Request):
 
 @router.get("/evolve/history")
 async def evolution_history(request: Request):
-    """获取进化历史（仅进化相关commit）"""
+    """获取进化历史（仅进化相关commit）
+
+    Read-only endpoint: reads from git_manager (immutable git history). No lock needed.
+    """
     git_manager = request.app.state.git_manager
     return {"commits": git_manager.get_evolution_commits()}
 
 
 @router.get("/evolve/direction")
 async def evolve_direction(request: Request):
-    """获取当前进化方向"""
+    """获取当前进化方向
+
+    Read-only endpoint: no lock needed. Safe in asyncio single-thread model because
+    Pydantic model assignment is atomic (no half-write state visible to other coroutines).
+    If switching to multi-thread/multi-process in the future, a read lock must be added here.
+    """
     evolve_engine = request.app.state.evolve_engine
     relationship = request.app.state.relationship
     return evolve_engine.get_full_evolution_direction(relationship)
@@ -81,7 +89,10 @@ async def evolve_direction(request: Request):
 
 @router.get("/evolve/endings")
 async def evolve_endings(request: Request):
-    """获取所有可能结局"""
+    """获取所有可能结局
+
+    Read-only endpoint: reads static data file. No lock needed.
+    """
     evolve_engine = request.app.state.evolve_engine
     endings = evolve_engine._load_endings()
     return {"endings": endings, "total": len(endings)}
@@ -89,7 +100,12 @@ async def evolve_endings(request: Request):
 
 @router.get("/evolve/progress")
 async def evolve_progress(request: Request):
-    """获取进化进度（各属性进度百分比）"""
+    """获取进化进度（各属性进度百分比）
+
+    Read-only endpoint: no lock needed. Safe in asyncio single-thread model because
+    Pydantic model assignment is atomic (no half-write state visible to other coroutines).
+    If switching to multi-thread/multi-process in the future, a read lock must be added here.
+    """
     evolve_engine = request.app.state.evolve_engine
     relationship = request.app.state.relationship
     progress = evolve_engine._calculate_progress(relationship)

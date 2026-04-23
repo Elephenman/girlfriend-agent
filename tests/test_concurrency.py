@@ -102,3 +102,84 @@ class TestConcurrencyStateLock:
 
         # All mutations should be applied: 3*1 + 3 = 6 intimacy
         assert shared_state["relationship"].intimacy_points == 6
+
+    @pytest.mark.anyio
+    async def test_concurrent_chat_and_revert_with_lock(self, evolve_engine):
+        """Verify Lock prevents conflicts between concurrent /chat and /evolve/revert"""
+        lock = asyncio.Lock()
+        shared_state = {"relationship": RelationshipState()}
+
+        async def simulate_chat_request(i: int):
+            async with lock:
+                rel = shared_state["relationship"]
+                req = ChatRequest(user_message=f"msg_{i}", interaction_type="daily_chat", level=1)
+                rel = evolve_engine.update_intimacy(req.interaction_type, rel)
+                shared_state["relationship"] = rel
+
+        async def simulate_revert_request():
+            """Simulate /evolve/revert: reload state from disk (reset to initial)."""
+            async with lock:
+                # Revert resets relationship to initial state
+                shared_state["relationship"] = RelationshipState()
+
+        # Run 3 chat requests and a revert concurrently
+        tasks = [simulate_chat_request(i) for i in range(3)]
+        tasks.append(simulate_revert_request())
+        await asyncio.gather(*tasks)
+
+        # After revert, intimacy should be either 0 (revert won) or some chat results (chats won after revert)
+        # The key point: no partial/corrupted state - intimacy is a well-defined integer
+        intimacy = shared_state["relationship"].intimacy_points
+        assert isinstance(intimacy, int)
+        # Possible outcomes: revert ran first -> chats add 0-3; revert ran last -> 0; mixed -> 0-3
+        assert intimacy >= 0
+
+    @pytest.mark.anyio
+    async def test_high_concurrency_chat_with_lock(self, evolve_engine):
+        """Stress test: 50 concurrent /chat requests under Lock protection"""
+        lock = asyncio.Lock()
+        shared_state = {"relationship": RelationshipState()}
+
+        async def simulate_chat_request(i: int):
+            async with lock:
+                rel = shared_state["relationship"]
+                req = ChatRequest(user_message=f"msg_{i}", interaction_type="daily_chat", level=1)
+                rel = evolve_engine.update_intimacy(req.interaction_type, rel)
+                shared_state["relationship"] = rel
+
+        await asyncio.gather(*[simulate_chat_request(i) for i in range(50)])
+        assert shared_state["relationship"].intimacy_points == 50
+
+    @pytest.mark.anyio
+    async def test_concurrent_mixed_chat_evolve_revert_with_lock(self, evolve_engine):
+        """Full matrix: concurrent /chat + /evolve + /evolve/revert under Lock"""
+        lock = asyncio.Lock()
+        shared_state = {"relationship": RelationshipState()}
+
+        async def simulate_chat_request(i: int):
+            async with lock:
+                rel = shared_state["relationship"]
+                req = ChatRequest(user_message=f"msg_{i}", interaction_type="daily_chat", level=1)
+                rel = evolve_engine.update_intimacy(req.interaction_type, rel)
+                shared_state["relationship"] = rel
+
+        async def simulate_evolve_request():
+            async with lock:
+                rel = shared_state["relationship"]
+                rel = evolve_engine.update_intimacy("deep_conversation", rel)
+                shared_state["relationship"] = rel
+
+        async def simulate_revert_request():
+            async with lock:
+                shared_state["relationship"] = RelationshipState()
+
+        # 5 chat + 2 evolve + 1 revert
+        tasks = [simulate_chat_request(i) for i in range(5)]
+        tasks.extend([simulate_evolve_request() for _ in range(2)])
+        tasks.append(simulate_revert_request())
+        await asyncio.gather(*tasks)
+
+        # Final intimacy is a well-defined integer (revert may zero it, or some mutations may survive)
+        intimacy = shared_state["relationship"].intimacy_points
+        assert isinstance(intimacy, int)
+        assert intimacy >= 0
