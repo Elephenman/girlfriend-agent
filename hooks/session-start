@@ -1,0 +1,34 @@
+#!/usr/bin/env bash
+# SessionStart hook for girlfriend-agent plugin
+# Injects the gf-intro skill content as session context on startup.
+
+set -euo pipefail
+
+SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
+PLUGIN_ROOT="$(cd "${SCRIPT_DIR}/.." && pwd)"
+
+# Read gf-intro skill content
+intro_content=$(cat "${PLUGIN_ROOT}/skills/gf-intro/SKILL.md" 2>&1 || echo "Error reading gf-intro skill")
+
+# Escape for JSON embedding
+escape_for_json() {
+    local s="$1"
+    s="${s//\\/\\\\}"
+    s="${s//\"/\\\"}"
+    s="${s//$'\\n'/\\n}"
+    s="${s//$'\\r'/\\r}"
+    s="${s//$'\\t'/\\t}"
+    printf '%s' "$s"
+}
+
+intro_escaped=$(escape_for_json "$intro_content")
+session_context="<EXTREMELY_IMPORTANT>\nYou have the girlfriend-agent plugin installed.\n\n**Below is the full content of your 'girlfriend-agent:gf-intro' skill - your introduction to using this plugin:**\n\n${intro_escaped}\n\nThe MCP server provides all tools listed above. Use slash commands (/gf-chat, /gf-status, /gf-evolve, /gf-memory, /gf-persona, /gf-graph) to invoke skills.\n</EXTREMELY_IMPORTANT>"
+
+# Output context injection as JSON
+if [ -n "${CLAUDE_PLUGIN_ROOT:-}" ]; then
+  printf '{\n  "hookSpecificOutput": {\n    "hookEventName": "SessionStart",\n    "additionalContext": "%s"\n  }\n}\n' "$session_context"
+else
+  printf '{\n  "additionalContext": "%s"\n}\n' "$session_context"
+fi
+
+exit 0

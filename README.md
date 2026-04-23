@@ -134,30 +134,60 @@ python -m src.engine_server
 - **Reinforcement**: Hit reinforcement (+0.1) + recall reinforcement (+0.2) + path reinforcement
 - **Decay API**: `/memory/decay` applies precise decay to both vector and graph memories
 
-## Architecture
+## Claude Code Plugin
+
+girlfriend-agent can be used as a **Claude Code plugin** — skills + slash commands + MCP tools + session hooks, all in one package.
+
+### Plugin Structure
 
 ```
-src/
-├── engine_server.py          # FastAPI entry point (port 18012)
-├── core/
-│   ├── models.py             # Pydantic data models
-│   ├── config.py             # Paths, constants, init
-│   ├── persona.py            # Persona engine (attribute→personality fusion)
-│   ├── memory.py             # Memory engine (ChromaDB + JSON + progressive injection)
-│   ├── graph_memory.py       # Graph memory engine (NetworkX episodic graph)
-│   ├── episodic_builder.py   # Episodic builder (entity extraction + graph construction)
-│   ├── evolve.py             # Evolution engine (observe/adjust/direction/revert)
-│   └── git_manager.py        # Git rollback management
-├── api/                       # 7 FastAPI routers
-├── templates/                 # 6 persona JSON templates
-├── prompts/                   # 7 level prompt templates (Lv0~Lv6)
-└── endings/                   # 56 ending descriptions
-skills/
-├── SKILL.md                   # WorkBuddy skill declaration
-└── scripts/                   # 4 bridge scripts (chat/status/evolve/update)
-tests/
-├── test_*.py                  # 544 tests covering all modules
+.claude-plugin/plugin.json        # Plugin manifest
+.mcp.json                         # MCP server config (stdio transport)
+skills/                           # 7 skills with SKILL.md
+├── gf-intro/                     # Introduction skill (auto-injected on session start)
+├── gf-chat/                      # Chat skill
+├── gf-status/                    # Status skill
+├── gf-evolve/                    # Evolution skill
+├── gf-memory/                    # Memory skill
+├── gf-persona/                   # Persona skill
+├── gf-graph/                     # Graph skill
+└── scripts/                      # CLI bridge scripts (backup interface)
+commands/                         # Slash commands
+├── gf-chat.md                    # /gf-chat
+├── gf-status.md                  # /gf-status
+├── gf-evolve.md                  # /gf-evolve
+├── gf-memory.md                  # /gf-memory
+├── gf-persona.md                 # /gf-persona
+└── gf-graph.md                   # /gf-graph
+agents/                           # Agent definitions
+└── girlfriend-persona.md         # Character response agent
+hooks/                            # Session hooks
+├── hooks.json                    # Hook configuration
+├── session-start                 # Context injection on startup
+└── run-hook.cmd                  # Windows/Unix polyglot wrapper
 ```
+
+### Using in Claude Code
+
+1. Add this repo as a plugin in Claude Code settings
+2. The MCP server starts automatically (via `.mcp.json`)
+3. On session start, the `gf-intro` skill content is injected as context
+4. Use slash commands: `/gf-chat`, `/gf-status`, `/gf-evolve`, `/gf-memory`, `/gf-persona`, `/gf-graph`
+5. All 26 MCP tools are available: `chat_girlfriend`, `status_girlfriend`, `evolve_run_girlfriend`, etc.
+
+### MCP Tools (26)
+
+All tools have `_girlfriend` suffix to avoid name conflicts:
+
+| Category | Tools |
+|---|---|
+| Chat | chat_girlfriend |
+| Status | status_girlfriend, health_girlfriend |
+| Persona | persona_get_girlfriend, persona_update_girlfriend, persona_apply_template_girlfriend |
+| Memory | memory_update_girlfriend, memory_search_girlfriend, memory_reinforce_girlfriend, memory_decay_girlfriend, memory_emotion_trend_girlfriend |
+| Graph | graph_add_entity_girlfriend, graph_add_relation_girlfriend, graph_add_event_girlfriend, graph_search_girlfriend, graph_timeline_girlfriend, graph_batch_build_girlfriend, graph_stats_girlfriend |
+| Evolution | evolve_run_girlfriend, evolve_direction_girlfriend, evolve_endings_girlfriend, evolve_progress_girlfriend, evolve_history_girlfriend, evolve_revert_girlfriend, evolve_revert_to_girlfriend |
+| Rollback | rollback_girlfriend |
 
 ## Testing
 
