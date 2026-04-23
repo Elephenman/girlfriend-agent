@@ -1,4 +1,5 @@
 # src/engine_server.py
+import json
 import os
 from contextlib import asynccontextmanager
 
@@ -9,6 +10,8 @@ from src.core.persona import PersonaEngine
 from src.core.memory import MemoryEngine
 from src.core.evolve import EvolveEngine
 from src.core.git_manager import GitManager
+from src.core.graph_memory import GraphMemoryEngine
+from src.core.episodic_builder import EpisodicBuilder
 from src.core.models import PersonaConfig, RelationshipState
 
 from src.api.chat_router import router as chat_router
@@ -21,7 +24,6 @@ from src.api.rollback_router import router as rollback_router
 
 def _load_or_init_state(config: Config) -> tuple[PersonaConfig, RelationshipState]:
     if os.path.isfile(config.persona_config_path):
-        import json
         with open(config.persona_config_path, encoding="utf-8") as f:
             persona_data = json.load(f)
         persona = PersonaConfig(**persona_data)
@@ -29,7 +31,6 @@ def _load_or_init_state(config: Config) -> tuple[PersonaConfig, RelationshipStat
         persona = PersonaConfig()
 
     if os.path.isfile(config.relationship_config_path):
-        import json
         with open(config.relationship_config_path, encoding="utf-8") as f:
             rel_data = json.load(f)
         relationship = RelationshipState(**rel_data)
@@ -40,7 +41,6 @@ def _load_or_init_state(config: Config) -> tuple[PersonaConfig, RelationshipStat
 
 
 def _save_state(config: Config, persona: PersonaConfig, relationship: RelationshipState) -> None:
-    import json
     os.makedirs(os.path.dirname(config.persona_config_path), exist_ok=True)
     with open(config.persona_config_path, "w", encoding="utf-8") as f:
         json.dump(persona.model_dump(), f, ensure_ascii=False, indent=2)
@@ -57,7 +57,9 @@ async def lifespan(app: FastAPI):
     git_mgr.init_repo()
 
     persona, relationship = _load_or_init_state(config)
-    _save_state(config, persona, relationship)
+    # Only save if state files don't already exist (avoid overwriting on restart)
+    if not os.path.isfile(config.persona_config_path) or not os.path.isfile(config.relationship_config_path):
+        _save_state(config, persona, relationship)
 
     app.state.config = config
     app.state.persona = persona
@@ -66,8 +68,16 @@ async def lifespan(app: FastAPI):
     app.state.memory_engine = MemoryEngine(config)
     app.state.evolve_engine = EvolveEngine(config, git_mgr)
     app.state.git_manager = git_mgr
+    app.state.graph_engine = GraphMemoryEngine(config)
+    app.state.episodic_builder = EpisodicBuilder(config, app.state.graph_engine)
 
     yield
+
+    # Graceful shutdown: persist graph to disk
+    try:
+        app.state.graph_engine.save_graph()
+    except Exception:
+        pass
 
 
 app = FastAPI(title="girlfriend-agent", version="0.1.0", lifespan=lifespan)

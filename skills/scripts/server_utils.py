@@ -1,4 +1,5 @@
 # skills/scripts/server_utils.py
+import os
 import socket
 import subprocess
 import sys
@@ -6,15 +7,16 @@ import time
 
 import httpx
 
-SERVER_PORT = 18012
-SERVER_URL = f"http://127.0.0.1:{SERVER_PORT}"
+SERVER_PORT = int(os.environ.get("GIRLFRIEND_AGENT_PORT", "18012"))
+SERVER_HOST = os.environ.get("GIRLFRIEND_AGENT_HOST", "localhost")
+SERVER_URL = f"http://{SERVER_HOST}:{SERVER_PORT}"
 
 
 def is_server_running() -> bool:
     with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
         s.settimeout(1)
         try:
-            s.connect(("127.0.0.1", SERVER_PORT))
+            s.connect((SERVER_HOST, SERVER_PORT))
             return True
         except (ConnectionRefusedError, OSError):
             return False
@@ -43,10 +45,9 @@ def ensure_server_running() -> bool:
         return False
 
     cmd = [sys.executable, "-m", "src.engine_server"]
-    CREATE_NO_WINDOW = 0x08000000  # Windows only
     kwargs = {}
     if sys.platform == "win32":
-        kwargs["creationflags"] = CREATE_NO_WINDOW
+        kwargs["creationflags"] = 0x08000000  # CREATE_NO_WINDOW on Windows
 
     proc = subprocess.Popen(
         cmd,

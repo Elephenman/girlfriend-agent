@@ -24,7 +24,7 @@ async def health(request: Request):
     memory_engine = request.app.state.memory_engine
     embedding_loaded = False
     try:
-        embedding_loaded = memory_engine.collection is not None
+        embedding_loaded = memory_engine._client is not None
     except Exception:
         pass
     return {"status": "ok", "embedding_loaded": embedding_loaded}

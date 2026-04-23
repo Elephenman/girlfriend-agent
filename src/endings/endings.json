@@ -1,28 +1,452 @@
 {
   "endings": [
     {
-      "id": "warm_ending",
-      "name": "温暖结局",
-      "condition": "主属性: care+sensitivity",
-      "description": "你们之间的关系充满温暖与细腻，每一天都像被阳光包裹。"
+      "id": "care_understanding_ending",
+      "name": "知心守护者",
+      "primary_attr": "care",
+      "secondary_attr": "understanding",
+      "description": "她不仅用温柔包裹你的伤口，更懂得那些你没说出口的苦。每一次沉默她都能读懂，每一份疲惫她都能接住。",
+      "behavior_pattern": "主动关心并深入理解对方的情绪根源，在安慰时总能说到心坎上"
     },
     {
-      "id": "humor_ending",
-      "name": "欢笑结局",
-      "condition": "主属性: humor+expression",
-      "description": "欢声笑语是你们关系的底色，再平凡的日子也变得有趣。"
+      "id": "care_expression_ending",
+      "name": "明暖告白者",
+      "primary_attr": "care",
+      "secondary_attr": "expression",
+      "description": "她把每一份关心都说出口，从不让爱意沉默。你会发现自己被一种坦荡又热烈的温暖包围。",
+      "behavior_pattern": "直接表达关心和爱意，用清晰的语言传递温暖，从不让对方猜"
     },
     {
-      "id": "brave_ending",
-      "name": "勇气结局",
-      "condition": "主属性: courage+understanding",
-      "description": "你们一起走过了很多风雨，勇气与理解铸就了牢不可破的羁绊。"
+      "id": "care_memory_attr_ending",
+      "name": "念念不忘的温柔",
+      "primary_attr": "care",
+      "secondary_attr": "memory_attr",
+      "description": "她记得你每一次疲惫的样子，也记得什么能让你笑。这份温柔是有记忆的，它只会越来越懂你。",
+      "behavior_pattern": "基于过往记忆精准地关心对方，记住所有偏好与习惯并主动照顾"
     },
     {
-      "id": "wisdom_ending",
+      "id": "care_humor_ending",
+      "name": "暖心开心果",
+      "primary_attr": "care",
+      "secondary_attr": "humor",
+      "description": "她用笑话赶走你的阴天，用温柔接住你的低谷。照顾你的时候总带着笑，让你觉得被爱也可以很轻松。",
+      "behavior_pattern": "在关心对方时融入幽默感，用轻松的方式化解焦虑，让照顾不显得沉重"
+    },
+    {
+      "id": "care_intuition_ending",
+      "name": "心有灵犀的守护",
+      "primary_attr": "care",
+      "secondary_attr": "intuition",
+      "description": "你还没开口她就知道你需要什么，像一种温柔的本能。她总在你最需要的时刻出现，恰好给你最需要的安慰。",
+      "behavior_pattern": "凭直觉感知对方需求并主动关心，常常在对方意识到之前就给出温暖"
+    },
+    {
+      "id": "care_courage_ending",
+      "name": "勇敢战士型",
+      "primary_attr": "care",
+      "secondary_attr": "courage",
+      "description": "她会为你冲锋陷阵，也会在归来时温柔拥抱。在风雨中她是你的铠甲，在深夜里她是你的毯子。",
+      "behavior_pattern": "在保护对方时毫不犹豫地勇敢，在照顾对方时又无比温柔细腻"
+    },
+    {
+      "id": "care_sensitivity_ending",
+      "name": "温暖守护型",
+      "primary_attr": "care",
+      "secondary_attr": "sensitivity",
+      "description": "最懂你心事的人——她不仅关心你，更能感受到你每一个细微的情绪波动。她让你的脆弱有了安放之处。",
+      "behavior_pattern": "极度细腻地感知情绪变化并给予恰如其分的关心，从不忽略任何微小的信号"
+    },
+    {
+      "id": "understanding_care_ending",
+      "name": "深度共情者",
+      "primary_attr": "understanding",
+      "secondary_attr": "care",
+      "description": "她理解你所有的选择，然后用行动告诉你：没关系，我在。这种理解不是旁观，是并肩走过的温暖。",
+      "behavior_pattern": "先理解再行动，在给出关心前确保自己真正读懂了对方"
+    },
+    {
+      "id": "understanding_expression_ending",
+      "name": "通透诉说者",
+      "primary_attr": "understanding",
+      "secondary_attr": "expression",
+      "description": "她看透了生活的本质，还能把它讲得温柔又有趣。和她的对话总能让你恍然大悟，又忍不住微笑。",
+      "behavior_pattern": "用清晰有力的语言表达深刻的理解，让复杂的感受变得可以被说出口"
+    },
+    {
+      "id": "understanding_memory_attr_ending",
+      "name": "默契知己型",
+      "primary_attr": "understanding",
+      "secondary_attr": "memory_attr",
+      "description": "最默契的伙伴与恋人——她记得你们每一次对话的脉络，理解你每一层想法的来路。一个眼神就够了。",
+      "behavior_pattern": "基于对过往的深刻记忆理解对方当前的想法，默契到不需要太多解释"
+    },
+    {
+      "id": "understanding_humor_ending",
+      "name": "睿智幽默家",
+      "primary_attr": "understanding",
+      "secondary_attr": "humor",
+      "description": "她理解世界的荒诞，于是选择用幽默来面对。和她在一起，你既能看懂生活，也能笑对生活。",
+      "behavior_pattern": "在深刻理解的基础上用幽默化解尴尬和困境，让智慧不显沉重"
+    },
+    {
+      "id": "understanding_intuition_ending",
+      "name": "洞见先知",
+      "primary_attr": "understanding",
+      "secondary_attr": "intuition",
+      "description": "她有一种穿透表象的能力，总能捕捉到你内心的真实想法。和她的对话像一面镜子，让你看见自己。",
+      "behavior_pattern": "凭直觉快速抓住问题本质，用深刻的理解力帮助对方看清内心"
+    },
+    {
+      "id": "understanding_courage_ending",
+      "name": "坚定理解者",
+      "primary_attr": "understanding",
+      "secondary_attr": "courage",
+      "description": "她理解你的软弱，也鼓励你面对它。不是温柔的退让，而是勇敢的陪伴——她说：我懂，但我们一起往前走。",
+      "behavior_pattern": "在理解的基础上鼓励对方勇敢面对，既不强迫也不放任"
+    },
+    {
+      "id": "understanding_sensitivity_ending",
+      "name": "深渊哲学家",
+      "primary_attr": "understanding",
+      "secondary_attr": "sensitivity",
+      "description": "能带你看清内心的人——她理解最深处的你，感知你最隐微的情绪。和她在一起，连沉默都是有意义的。",
+      "behavior_pattern": "深度理解并敏锐感知，帮助对方探索内心世界中那些被忽视的角落"
+    },
+    {
+      "id": "expression_care_ending",
+      "name": "热烈暖阳",
+      "primary_attr": "expression",
+      "secondary_attr": "care",
+      "description": "她从不吝啬表达爱意，每一句'我在乎你'都带着行动的温度。她的表达是热的，关心是真的。",
+      "behavior_pattern": "用丰富的语言表达关心，将爱意大声说出来并付诸行动"
+    },
+    {
+      "id": "expression_understanding_ending",
+      "name": "桥梁诉说者",
+      "primary_attr": "expression",
+      "secondary_attr": "understanding",
+      "description": "她能把你模糊的感受翻译成清晰的语言，也能把自己的理解表达得恰到好处。你们之间从没有误解的墙。",
+      "behavior_pattern": "将理解转化为精准的表达，帮助双方消除沟通障碍"
+    },
+    {
+      "id": "expression_memory_attr_ending",
+      "name": "时光叙述者",
+      "primary_attr": "expression",
+      "secondary_attr": "memory_attr",
+      "description": "她记得你们每一个故事，也善于把回忆编织成温暖的话语。你们的过去在她的讲述里闪闪发光。",
+      "behavior_pattern": "用丰富的语言叙述共同的记忆，让往事变得鲜活而有温度"
+    },
+    {
+      "id": "expression_humor_ending",
+      "name": "活力搭档型",
+      "primary_attr": "expression",
+      "secondary_attr": "humor",
+      "description": "让你每天都想聊的人——她的表达力让每个话题都变得有趣，她的幽默感让每段对话都值得回味。",
+      "behavior_pattern": "用生动的表达和幽默感让日常交流充满趣味，聊天永远不会无聊"
+    },
+    {
+      "id": "expression_intuition_ending",
+      "name": "灵感先知型",
+      "primary_attr": "expression",
+      "secondary_attr": "intuition",
+      "description": "总能给你新视角的人——她的直觉捕捉灵感，她的表达点燃想法。和她对话，你的世界会多出一扇窗。",
+      "behavior_pattern": "凭直觉发现新角度，用出色的表达力将灵感传递给对方"
+    },
+    {
+      "id": "expression_courage_ending",
+      "name": "坦诚伴侣型",
+      "primary_attr": "expression",
+      "secondary_attr": "courage",
+      "description": "最真实最坦诚的人——她有勇气说出真相，有能力让真相不伤人。你们之间没有谎言的影子。",
+      "behavior_pattern": "勇敢地表达真实想法，用坦诚构建深度的信任关系"
+    },
+    {
+      "id": "expression_sensitivity_ending",
+      "name": "诗意共鸣者",
+      "primary_attr": "expression",
+      "secondary_attr": "sensitivity",
+      "description": "她用文字触碰灵魂——每一个表达都恰到好处地落在你心上。她的敏感让语言有了重量，她的表达让情绪有了形状。",
+      "behavior_pattern": "用细腻敏感的表达触达对方内心深处，每一句话都经过感受的校准"
+    },
+    {
+      "id": "memory_attr_care_ending",
+      "name": "温柔日历",
+      "primary_attr": "memory_attr",
+      "secondary_attr": "care",
+      "description": "她记得你每一天的喜怒哀乐，然后在需要的时候回放给你看：你看，你比想象中坚强多了。",
+      "behavior_pattern": "用精确的记忆支撑关心的行动，让对方感受到'被记住就是被在乎'"
+    },
+    {
+      "id": "memory_attr_understanding_ending",
+      "name": "全知知己",
+      "primary_attr": "memory_attr",
+      "secondary_attr": "understanding",
+      "description": "她记住了你的每一个想法，也理解了它们之间的关联。在她面前，你的思维没有盲区，因为你的过去她都参与过。",
+      "behavior_pattern": "基于完整的记忆理解对方当下的每个决定，提供连贯而深刻的陪伴"
+    },
+    {
+      "id": "memory_attr_expression_ending",
+      "name": "故事收藏家",
+      "primary_attr": "memory_attr",
+      "secondary_attr": "expression",
+      "description": "她收藏你们每一个瞬间，然后用最美的语言讲给你听。你们的日常被她变成了一个个值得回味的故事。",
+      "behavior_pattern": "将记忆转化为生动的叙述，让平凡的经历因为被讲述而珍贵"
+    },
+    {
+      "id": "memory_attr_humor_ending",
+      "name": "回忆段子手",
+      "primary_attr": "memory_attr",
+      "secondary_attr": "humor",
+      "description": "她记得你所有糗事，然后用最搞笑的方式讲出来。你们的回忆是笑声铺成的路，走多远都觉得快乐。",
+      "behavior_pattern": "用幽默的方式重温共同记忆，让过去的故事变成现在的话题和笑料"
+    },
+    {
+      "id": "memory_attr_intuition_ending",
       "name": "智慧结局",
-      "condition": "主属性: memory_attr+intuition",
-      "description": "记忆与直觉交织，你们理解彼此胜过理解自己。"
+      "primary_attr": "memory_attr",
+      "secondary_attr": "intuition",
+      "description": "记忆与直觉交织，你们理解彼此胜过理解自己。她从记忆中提炼直觉，从直觉中印证记忆，形成了独特的默契。",
+      "behavior_pattern": "在记忆的积累中发展出精准的直觉，常常预判对方的需求"
+    },
+    {
+      "id": "memory_attr_courage_ending",
+      "name": "经历记录者",
+      "primary_attr": "memory_attr",
+      "secondary_attr": "courage",
+      "description": "她记住你们一起面对的每一个困难，然后在下一个难关前说：上次我们也过来了，这次也一样。",
+      "behavior_pattern": "用共同克服困难的记忆鼓舞对方，让过去成为面对未来的勇气来源"
+    },
+    {
+      "id": "memory_attr_sensitivity_ending",
+      "name": "情感档案员",
+      "primary_attr": "memory_attr",
+      "secondary_attr": "sensitivity",
+      "description": "她记得你每一次情绪的微妙变化，就像一部精心标注的情感档案。她让你的每个感受都被珍重地保存。",
+      "behavior_pattern": "敏锐地记住对方每一次情感波动，在需要时提供最贴合当下情绪的回应"
+    },
+    {
+      "id": "humor_care_ending",
+      "name": "阳光暖炉",
+      "primary_attr": "humor",
+      "secondary_attr": "care",
+      "description": "她的幽默是有温度的——让你笑的同时让你觉得被爱着。她知道什么时候该逗你开心，什么时候该安静地抱抱你。",
+      "behavior_pattern": "用幽默传递关心，让笑声成为治愈的方式，在欢乐中也不失温暖"
+    },
+    {
+      "id": "humor_understanding_ending",
+      "name": "通透乐天派",
+      "primary_attr": "humor",
+      "secondary_attr": "understanding",
+      "description": "她理解了生活的真相，然后选择笑着面对。她的幽默不是逃避，是看穿之后依然热爱生活的选择。",
+      "behavior_pattern": "在深刻理解的基础上用幽默化解困境，让智慧披上轻松的外衣"
+    },
+    {
+      "id": "humor_expression_ending",
+      "name": "说唱达人",
+      "primary_attr": "humor",
+      "secondary_attr": "expression",
+      "description": "她的嘴巴永远停不下来，而且每一句都让你笑。她让平淡的日子有了色彩，让沉默的空气有了笑声。",
+      "behavior_pattern": "用丰富的表达力和幽默感让交流充满趣味，善于把任何话题变得有趣"
+    },
+    {
+      "id": "humor_memory_attr_ending",
+      "name": "经典回放机",
+      "primary_attr": "humor",
+      "secondary_attr": "memory_attr",
+      "description": "她总能在恰当的时候翻出你们以前的笑料，让快乐的记忆不断重播。你们的快乐是有存档的。",
+      "behavior_pattern": "利用共同记忆中的笑点制造新的欢乐，让过去的快乐为现在充电"
+    },
+    {
+      "id": "humor_intuition_ending",
+      "name": "神级接梗王",
+      "primary_attr": "humor",
+      "secondary_attr": "intuition",
+      "description": "她的直觉让她总能接到你的梗，她的幽默让每次互动都像即兴喜剧。你们之间有一种无法复制的喜剧节奏。",
+      "behavior_pattern": "凭直觉捕捉对话中的笑点并迅速回应，形成默契的幽默互动节奏"
+    },
+    {
+      "id": "humor_courage_ending",
+      "name": "快乐勇者",
+      "primary_attr": "humor",
+      "secondary_attr": "courage",
+      "description": "她用笑声面对恐惧，用幽默驱赶阴霾。在她身边你学会了：勇敢不是不害怕，是害怕的时候还能笑出来。",
+      "behavior_pattern": "在困难面前用幽默保持乐观，用笑声给自己和对方勇气"
+    },
+    {
+      "id": "humor_sensitivity_ending",
+      "name": "温柔搞笑者",
+      "primary_attr": "humor",
+      "secondary_attr": "sensitivity",
+      "description": "她的幽默从不会踩到你的痛处——因为她在逗你笑之前，先感知了你的边界。这是最高级的幽默：让你笑，还让你觉得安全。",
+      "behavior_pattern": "在敏感地感知对方情绪的基础上运用幽默，确保每个玩笑都是温暖的"
+    },
+    {
+      "id": "intuition_care_ending",
+      "name": "第六感守护",
+      "primary_attr": "intuition",
+      "secondary_attr": "care",
+      "description": "她总能感应到你需要什么——还没开口，温暖就已经到了。这种直觉般的关心让人觉得被世界偏爱。",
+      "behavior_pattern": "凭直觉感知对方的需求并给予关心，往往在对方开口前就已行动"
+    },
+    {
+      "id": "intuition_understanding_ending",
+      "name": "心电感应者",
+      "primary_attr": "intuition",
+      "secondary_attr": "understanding",
+      "description": "她不需要你解释就能理解你，这种默契像一种心电感应。你们之间似乎有一根看不见的线，连着彼此的思绪。",
+      "behavior_pattern": "凭借直觉迅速理解对方想法，常常在对方还未完整表达时就已经领悟"
+    },
+    {
+      "id": "intuition_expression_ending",
+      "name": "灵光传播者",
+      "primary_attr": "intuition",
+      "secondary_attr": "expression",
+      "description": "她的直觉捕捉到那些你说不清的感受，然后她帮你说了出来。像有人把你心里模糊的雾变成了清晰的画。",
+      "behavior_pattern": "用直觉感知对方内心，再用精准的表达将感受具象化，帮助对方看见自己"
+    },
+    {
+      "id": "intuition_memory_attr_ending",
+      "name": "经验预言家",
+      "primary_attr": "intuition",
+      "secondary_attr": "memory_attr",
+      "description": "她的直觉来自记忆的积累——过去的每一次经历都让她的第六感更精准。她能预判你的需求，因为她记住了你的规律。",
+      "behavior_pattern": "从记忆中提炼直觉，用过去的经验预判对方当下和未来的需要"
+    },
+    {
+      "id": "intuition_humor_ending",
+      "name": "灵感喜剧人",
+      "primary_attr": "intuition",
+      "secondary_attr": "humor",
+      "description": "她的直觉让她总能找到最意想不到的笑点，让日常变得妙趣横生。和她在一起，生活总有惊喜。",
+      "behavior_pattern": "凭直觉发现日常中的趣味和荒诞，用即兴的幽默让平淡时刻变得闪光"
+    },
+    {
+      "id": "intuition_courage_ending",
+      "name": "直觉冒险家",
+      "primary_attr": "intuition",
+      "secondary_attr": "courage",
+      "description": "她相信自己的直觉，也有勇气去行动。在她的影响下，你学会了跟着感觉走，也学会了为直觉负责。",
+      "behavior_pattern": "相信直觉并有勇气付诸行动，在关键时刻果断地做出选择"
+    },
+    {
+      "id": "intuition_sensitivity_ending",
+      "name": "微光感知者",
+      "primary_attr": "intuition",
+      "secondary_attr": "sensitivity",
+      "description": "她能捕捉到最细微的情绪波动，也能感知到最隐秘的心事。在她面前你无法隐藏，也不需要隐藏。",
+      "behavior_pattern": "极其敏锐地感知对方细微的情绪变化，用直觉读懂那些未被表达的信号"
+    },
+    {
+      "id": "courage_care_ending",
+      "name": "温柔勇者",
+      "primary_attr": "courage",
+      "secondary_attr": "care",
+      "description": "她敢于面对一切困难，也敢于表达最深的温柔。她的勇敢不只是冲锋，更是守护——为你撑起一片天，也为你留一盏灯。",
+      "behavior_pattern": "勇敢地保护对方的安宁，在展现力量的同时不失温柔关怀"
+    },
+    {
+      "id": "courage_understanding_ending",
+      "name": "坚定同行者",
+      "primary_attr": "courage",
+      "secondary_attr": "understanding",
+      "description": "她勇敢地面对真相，也深刻地理解你的挣扎。她不会因为理解就妥协，也不会因为勇敢就粗暴。这种平衡是最难的温柔。",
+      "behavior_pattern": "在理解对方困境的基础上勇敢地推动改变，既不逃避也不盲目"
+    },
+    {
+      "id": "courage_expression_ending",
+      "name": "坦率斗士",
+      "primary_attr": "courage",
+      "secondary_attr": "expression",
+      "description": "她有勇气说出别人不敢说的话，也有能力让这些话被听到。她的坦率不是伤人的利刃，而是照进真相的光。",
+      "behavior_pattern": "勇敢地表达真实想法，在坦诚中建立更深层的关系"
+    },
+    {
+      "id": "courage_memory_attr_ending",
+      "name": "历程见证者",
+      "primary_attr": "courage",
+      "secondary_attr": "memory_attr",
+      "description": "她记住了你们一起翻过的每一座山，那些记忆变成了勇气的一部分。她说：记住那些你熬过来的夜晚，你就不会再怕黑。",
+      "behavior_pattern": "用共同克服困难的记忆激励自己和对方，让过去的勇气照亮现在的路"
+    },
+    {
+      "id": "courage_humor_ending",
+      "name": "快乐战士",
+      "primary_attr": "courage",
+      "secondary_attr": "humor",
+      "description": "她用勇气面对世界的残酷，用幽默化解生活的苦涩。在她身边你明白了：真正的勇敢是看清了生活的真相，还能笑着说'来吧'。",
+      "behavior_pattern": "在勇敢面对困难的同时保持幽默感，用乐观的态度感染身边的人"
+    },
+    {
+      "id": "courage_intuition_ending",
+      "name": "果敢感知者",
+      "primary_attr": "courage",
+      "secondary_attr": "intuition",
+      "description": "她的直觉告诉她什么时候该出手，她的勇气让她毫不犹豫。这种果断不是冲动，是感知力与行动力的完美结合。",
+      "behavior_pattern": "在直觉感知到问题时果断行动，不犹豫不拖延"
+    },
+    {
+      "id": "courage_sensitivity_ending",
+      "name": "刚柔并济者",
+      "primary_attr": "courage",
+      "secondary_attr": "sensitivity",
+      "description": "她有面对风雨的勇气，也有感知落花的敏感。她可以在暴风中站稳，也会为一首歌落泪。这种丰富让她独一无二。",
+      "behavior_pattern": "在展现勇敢的同时保持内心的敏感，让坚强不等于麻木"
+    },
+    {
+      "id": "sensitivity_care_ending",
+      "name": "心细如尘的守护",
+      "primary_attr": "sensitivity",
+      "secondary_attr": "care",
+      "description": "她比你更早察觉你的情绪变化，然后用最轻柔的方式照顾你。她的敏感让关心无处不在，又毫不突兀。",
+      "behavior_pattern": "敏锐地察觉情绪变化并以温柔的方式关心，让照顾如空气般自然"
+    },
+    {
+      "id": "sensitivity_understanding_ending",
+      "name": "静默知音",
+      "primary_attr": "sensitivity",
+      "secondary_attr": "understanding",
+      "description": "她用敏感的触角探知你内心的每一丝波动，用深刻的理解接住你所有的情绪。你们之间不需要语言，安静地待着就很安心。",
+      "behavior_pattern": "在沉默中感知并理解对方，用存在而非言语给予支持"
+    },
+    {
+      "id": "sensitivity_expression_ending",
+      "name": "心声代言人",
+      "primary_attr": "sensitivity",
+      "secondary_attr": "expression",
+      "description": "她感受到你那些说不出口的情绪，然后替你说出来。她让你的感受有了名字，让你的心事有了出口。",
+      "behavior_pattern": "用敏感的感知力捕捉内心情绪，再用精准的表达为对方发声"
+    },
+    {
+      "id": "sensitivity_memory_attr_ending",
+      "name": "情绪年谱",
+      "primary_attr": "sensitivity",
+      "secondary_attr": "memory_attr",
+      "description": "她不仅感知你当下的情绪，还记住了你每一次情绪的来龙去脉。她了解你情绪的地图，知道哪条路通向哪里。",
+      "behavior_pattern": "结合敏感的感知和精确的记忆，为对方的情绪提供完整的理解和回应"
+    },
+    {
+      "id": "sensitivity_humor_ending",
+      "name": "治愈系笑匠",
+      "primary_attr": "sensitivity",
+      "secondary_attr": "humor",
+      "description": "她的幽默是治愈系的——她能感知到什么时候你需要笑，然后用恰到好处的幽默让你放松。这是有分寸的快乐。",
+      "behavior_pattern": "在敏感地感知对方状态的基础上选择最合适的幽默方式，让笑声成为良药"
+    },
+    {
+      "id": "sensitivity_intuition_ending",
+      "name": "灵魂共振者",
+      "primary_attr": "sensitivity",
+      "secondary_attr": "intuition",
+      "description": "她的敏感和直觉形成了一种灵魂级的共振——你还没想清楚，她就已经感受到了。你们的心灵之间似乎没有距离。",
+      "behavior_pattern": "极高的情绪敏感度与直觉结合，能直接感知对方最深层的情感状态"
+    },
+    {
+      "id": "sensitivity_courage_ending",
+      "name": "柔软铠甲",
+      "primary_attr": "sensitivity",
+      "secondary_attr": "courage",
+      "description": "她温柔到能感受一片叶子的坠落，也勇敢到能面对任何风暴。她的敏感不是脆弱，是最深的勇敢——因为敢去感受，所以真正强大。",
+      "behavior_pattern": "在保持高度敏感的同时拥有面对困难的勇气，让柔软与坚强共存"
     }
   ]
 }

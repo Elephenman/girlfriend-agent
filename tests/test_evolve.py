@@ -102,7 +102,7 @@ class TestEvolveCycle:
         ]
         result_state, log_entry = evolve_engine.run_evolution_cycle(sessions, state)
         assert log_entry is not None
-        assert log_entry.trigger == "7次对话"
+        assert log_entry.trigger == "7次对话 (情绪:neutral)"
 
     def test_evolution_adjustment_within_10pct(self, evolve_engine):
         state = RelationshipState(

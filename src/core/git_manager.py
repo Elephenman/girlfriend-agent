@@ -1,6 +1,7 @@
 import os
 
 from git import Repo
+from git.exc import GitCommandError
 
 
 class GitManager:
@@ -15,15 +16,15 @@ class GitManager:
         repo = Repo.init(self.repo_path)
 
         gitignore_path = os.path.join(self.repo_path, ".gitignore")
-        with open(gitignore_path, "w") as f:
-            f.write("chroma_db/\nsession_memory/\n")
+        with open(gitignore_path, "w", encoding="utf-8") as f:
+            f.write("chroma_db/\nsession_memory/\ngraphrag_db/\n")
 
         # Create minimal config dir so initial commit has something
         config_dir = os.path.join(self.repo_path, "config")
         os.makedirs(config_dir, exist_ok=True)
         settings_path = os.path.join(config_dir, "settings.json")
         if not os.path.isfile(settings_path):
-            with open(settings_path, "w") as f:
+            with open(settings_path, "w", encoding="utf-8") as f:
                 f.write("{}\n")
 
         repo.index.add([".gitignore", "config/settings.json"])
@@ -65,10 +66,39 @@ class GitManager:
                 try:
                     repo.git.ls_tree(commit_hash, prefix.replace(os.sep, "/"))
                     repo.git.checkout(commit_hash, "--", prefix.replace(os.sep, "/"))
-                except Exception:
+                except GitCommandError:
                     # Path doesn't exist in target commit, skip
                     pass
 
     def revert_last(self) -> None:
         repo = Repo(self.repo_path)
         repo.git.revert("HEAD", no_edit=True)
+
+    def get_evolution_commits(self) -> list[dict]:
+        """获取进化相关的commit列表（commit message 以 'evolution:' 开头）"""
+        repo = Repo(self.repo_path)
+        result = []
+        for commit in repo.iter_commits():
+            if commit.message.strip().startswith("evolution:"):
+                result.append({
+                    "hash": commit.hexsha,
+                    "message": commit.message.strip(),
+                    "date": commit.committed_datetime.isoformat(),
+                })
+        return result
+
+    def revert_evolution_commit(self, commit_hash: str | None = None) -> bool:
+        """回退单个进化commit。如果 commit_hash 为 None，回退最近的进化commit。"""
+        repo = Repo(self.repo_path)
+        try:
+            if commit_hash:
+                repo.git.revert(commit_hash, no_edit=True)
+            else:
+                # 找到最近的进化commit
+                evo_commits = self.get_evolution_commits()
+                if not evo_commits:
+                    return False
+                repo.git.revert(evo_commits[0]["hash"], no_edit=True)
+            return True
+        except GitCommandError:
+            return False

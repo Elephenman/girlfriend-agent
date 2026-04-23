@@ -4,7 +4,7 @@ import shutil
 
 from src.core.config import Config
 from src.core.models import (
-    PersonaConfig, PersonalityBase, RelationshipState, DeAiDimensions,
+    PersonaConfig, PersonalityBase, RelationshipState,
 )
 
 # Attribute → Personality dimension mapping with weights
@@ -116,7 +116,7 @@ class PersonaEngine:
             return ""
         return "去AI味行为规则：" + "；".join(rules)
 
-    def update_persona_field(self, field: str, value) -> None:
+    def update_persona_field(self, field: str, value, auto_commit: bool = True) -> None:
         persona = self.load_persona()
         if "." in field:
             parts = field.split(".")
@@ -129,3 +129,11 @@ class PersonaEngine:
 
         with open(self.config.persona_config_path, "w", encoding="utf-8") as f:
             json.dump(persona.model_dump(), f, ensure_ascii=False, indent=2)
+
+        if auto_commit:
+            try:
+                from src.core.git_manager import GitManager
+                git_mgr = GitManager(data_dir=self.config.data_dir)
+                git_mgr.commit(f"persona update: {field}")
+            except Exception:
+                pass  # Git commit is best-effort; don't fail the update

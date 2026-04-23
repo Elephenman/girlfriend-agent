@@ -1,4 +1,5 @@
 import os
+import threading
 from pathlib import Path
 
 
@@ -41,10 +42,21 @@ class Config:
     WEIGHT_DECAY_LAMBDA = 0.1
     WEIGHT_ACCESS_SCALE = "sqrt"
 
+    GRAPH_NODE_TYPES = {"entity", "event", "topic", "emotion"}
+    GRAPH_EDGE_TYPES = {"caused", "related_to", "followed_by", "about", "felt_during"}
+    GRAPH_DEFAULT_MAX_DEPTH = 3
+    GRAPH_DEFAULT_MAX_NODES = 20
+
+    # 记忆衰减与强化
+    WEIGHT_DECAY_PRECISE = True
+    REINFORCE_STRENGTH_HIT = 0.1
+    REINFORCE_STRENGTH_RECALL = 0.2
+    EMOTION_TREND_WINDOW = 10
+
     INJECTION_LEVELS = {
-        1: {"max_memories": 3, "approx_chars": 600},
-        2: {"max_memories": 8, "approx_chars": 2500},
-        3: {"max_memories": 15, "approx_chars": 5000},
+        1: {"max_memories": 3, "approx_chars": 600, "include_graph": False},
+        2: {"max_memories": 8, "approx_chars": 2500, "include_graph": True, "graph_depth": 1},
+        3: {"max_memories": 15, "approx_chars": 5000, "include_graph": True, "graph_depth": 3},
     }
 
     def __init__(self, data_dir: str | None = None):
@@ -101,6 +113,10 @@ class Config:
         return os.path.join(self.config_dir, "level_prompts")
 
     @property
+    def graphrag_db_dir(self) -> str:
+        return os.path.join(self.data_dir, "data", "graphrag_db")
+
+    @property
     def templates_dir(self) -> str:
         return os.path.join(self.data_dir, "templates")
 
@@ -113,15 +129,18 @@ class Config:
             self.config_dir,
             self.level_prompts_dir,
             self.templates_dir,
+            self.graphrag_db_dir,
         ]:
             os.makedirs(d, exist_ok=True)
 
 
 _config_instance: Config | None = None
+_config_lock = threading.Lock()
 
 
 def get_config(data_dir: str | None = None) -> Config:
     global _config_instance
-    if _config_instance is None or (data_dir is not None and _config_instance.data_dir != data_dir):
-        _config_instance = Config(data_dir)
+    with _config_lock:
+        if _config_instance is None or (data_dir is not None and _config_instance.data_dir != data_dir):
+            _config_instance = Config(data_dir)
     return _config_instance

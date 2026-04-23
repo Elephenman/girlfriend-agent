@@ -42,8 +42,9 @@ async def chat(req: ChatRequest, request: Request):
     de_ai_instructions = persona_engine.get_de_ai_instructions(relationship)
 
     # Get memory injection
+    graph_engine = getattr(request.app.state, "graph_engine", None)
     memory_ctx = memory_engine.get_injection_context(
-        req.user_message, req.level, relationship
+        req.user_message, req.level, relationship, graph_engine=graph_engine
     )
 
     # Build full prompt

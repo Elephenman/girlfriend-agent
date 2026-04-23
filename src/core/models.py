@@ -1,4 +1,5 @@
 import math
+import uuid
 from datetime import datetime
 
 from pydantic import BaseModel, Field, field_validator
@@ -96,8 +97,9 @@ class MemoryFragment(BaseModel):
 
     def model_post_init(self, __context) -> None:
         if self.weight == 0.0:
-            days = 0
-            self.weight = math.sqrt(1) * math.exp(-0.1 * days)  # 1.0 for new
+            created = datetime.strptime(self.created_date, "%Y-%m-%d")
+            days = (datetime.now() - created).days
+            self.weight = math.sqrt(1) * math.exp(-0.1 * days)
 
 
 class SessionMemory(BaseModel):
@@ -123,6 +125,15 @@ class ChatRequest(BaseModel):
     level: int = Field(ge=1, le=3)
     interaction_type: str = "daily_chat"
 
+    @field_validator("interaction_type")
+    @classmethod
+    def validate_interaction_type(cls, v: str) -> str:
+        from src.core.config import Config
+        valid_types = set(Config.INTIMACY_PER_TYPE.keys())
+        if v not in valid_types:
+            raise ValueError(f"interaction_type must be one of {valid_types}, got '{v}'")
+        return v
+
 
 class ChatResponse(BaseModel):
     persona_prompt: str
@@ -135,3 +146,53 @@ class MemoryUpdateRequest(BaseModel):
     content: str
     memory_type: str = "fact"
     metadata: dict = Field(default_factory=dict)
+
+
+class GraphNode(BaseModel):
+    node_id: str
+    node_type: str = "entity"  # entity, event, topic, emotion
+    label: str
+    properties: dict = Field(default_factory=dict)
+    weight: float = 1.0
+    created_date: str = Field(default_factory=lambda: datetime.now().strftime("%Y-%m-%d"))
+    last_accessed: str = Field(default_factory=lambda: datetime.now().strftime("%Y-%m-%d"))
+    access_count: int = 0
+
+
+class GraphEdge(BaseModel):
+    source_id: str
+    target_id: str
+    relation: str = "related_to"  # caused, related_to, followed_by, about, felt_during
+    properties: dict = Field(default_factory=dict)
+    weight: float = 1.0
+    created_date: str = Field(default_factory=lambda: datetime.now().strftime("%Y-%m-%d"))
+
+
+class GraphSearchResult(BaseModel):
+    nodes: list[GraphNode] = Field(default_factory=list)
+    edges: list[GraphEdge] = Field(default_factory=list)
+    context_summary: str = ""
+
+
+class EpisodicEvent(BaseModel):
+    event_id: str = Field(default_factory=lambda: f"evt_{uuid.uuid4().hex[:8]}")
+    description: str
+    timestamp: str = Field(default_factory=lambda: datetime.now().isoformat())
+    entities: list[str] = Field(default_factory=list)
+    emotion: str = ""
+    causal_links: list[str] = Field(default_factory=list)
+
+
+class ObservationPattern(BaseModel):
+    topic_distribution: dict[str, int] = Field(default_factory=dict)
+    emotion_tone: str = "neutral"  # positive, negative, neutral, mixed
+    hidden_needs: list[str] = Field(default_factory=list)
+    interaction_distribution: dict[str, int] = Field(default_factory=dict)
+    summary: str = ""
+
+
+class EvolutionState(BaseModel):
+    consecutive_adjustments: dict[str, int] = Field(default_factory=dict)  # dim_name -> 连续调整次数
+    total_cycles: int = 0
+    last_adjustments: dict[str, float] = Field(default_factory=dict)
+    evolution_progress: dict[str, float] = Field(default_factory=dict)  # 每个属性的进化进度 0.0~1.0

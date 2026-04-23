@@ -2,7 +2,11 @@
 #!/usr/bin/env python3
 """Skill bridge: update — write a memory fragment."""
 import argparse
+import os
 import sys
+
+# Ensure the script's directory is on the path for server_utils imports
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
 import httpx
 

@@ -3,7 +3,11 @@
 """Skill bridge: chat — get persona context for a user message."""
 import argparse
 import json
+import os
 import sys
+
+# Ensure the script's directory is on the path for server_utils imports
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
 import httpx
 

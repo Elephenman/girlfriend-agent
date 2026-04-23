@@ -1,7 +1,11 @@
 # skills/scripts/evolve.py
 #!/usr/bin/env python3
 """Skill bridge: evolve — run evolution cycle."""
+import os
 import sys
+
+# Ensure the script's directory is on the path for server_utils imports
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
 import httpx
 
