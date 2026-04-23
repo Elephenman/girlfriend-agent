@@ -67,12 +67,12 @@ Add to your project's `.claude/settings.json`:
 ```
 
 Once configured, the AI assistant will automatically see all girlfriend-agent tools and can:
-- Chat with persona context injection (`chat`)
-- Store and search memories (`memory_update`, `memory_search`)
-- Build episodic knowledge graph (`graph_add_entity`, `graph_search`)
-- Trigger evolution cycles (`evolve_run`)
-- Check relationship status (`status`)
-- Roll back to any previous state (`evolve_revert_to`, `rollback`)
+- Chat with persona context injection (`chat_girlfriend`)
+- Store and search memories (`memory_update_girlfriend`, `memory_search_girlfriend`)
+- Build episodic knowledge graph (`graph_add_entity_girlfriend`, `graph_search_girlfriend`)
+- Trigger evolution cycles (`evolve_run_girlfriend`)
+- Check relationship status (`status_girlfriend`)
+- Roll back to any previous state (`evolve_revert_to_girlfriend`, `rollback_girlfriend`)
 
 For global availability (all projects), add to `~/.claude/settings.json` instead and set the `GIRLFRIEND_AGENT_DATA` env var:
 
@@ -95,13 +95,13 @@ For global availability (all projects), add to `~/.claude/settings.json` instead
 
 | Category | Tools |
 |---|---|
-| **Chat** | `chat` — process message with persona + memory injection |
-| **Status** | `status`, `health` — relationship state + engine health |
-| **Persona** | `persona_get`, `persona_update`, `persona_apply_template` — read/update/switch personality |
-| **Memory** | `memory_update`, `memory_search`, `memory_reinforce`, `memory_decay`, `memory_emotion_trend` — store/search/decay vector memories |
-| **Graph** | `graph_add_entity`, `graph_add_relation`, `graph_add_event`, `graph_search`, `graph_timeline`, `graph_batch_build`, `graph_stats` — episodic knowledge graph |
-| **Evolve** | `evolve_run`, `evolve_direction`, `evolve_endings`, `evolve_progress`, `evolve_history`, `evolve_revert`, `evolve_revert_to` — evolution cycle + rollback |
-| **Rollback** | `rollback` — full state rollback to any git commit |
+| **Chat** | `chat_girlfriend` — process message with persona + memory injection |
+| **Status** | `status_girlfriend`, `health_girlfriend` — relationship state + engine health |
+| **Persona** | `persona_get_girlfriend`, `persona_update_girlfriend`, `persona_apply_template_girlfriend` — read/update/switch personality |
+| **Memory** | `memory_update_girlfriend`, `memory_search_girlfriend`, `memory_reinforce_girlfriend`, `memory_decay_girlfriend`, `memory_emotion_trend_girlfriend` — store/search/decay vector memories |
+| **Graph** | `graph_add_entity_girlfriend`, `graph_add_relation_girlfriend`, `graph_add_event_girlfriend`, `graph_search_girlfriend`, `graph_timeline_girlfriend`, `graph_batch_build_girlfriend`, `graph_stats_girlfriend` — episodic knowledge graph |
+| **Evolve** | `evolve_run_girlfriend`, `evolve_direction_girlfriend`, `evolve_endings_girlfriend`, `evolve_progress_girlfriend`, `evolve_history_girlfriend`, `evolve_revert_girlfriend`, `evolve_revert_to_girlfriend` — evolution cycle + rollback |
+| **Rollback** | `rollback_girlfriend` — full state rollback to any git commit |
 
 </details>
 

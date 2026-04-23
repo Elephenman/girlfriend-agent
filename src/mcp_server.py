@@ -94,7 +94,7 @@ def _error_result(msg: str) -> list[TextContent]:
 TOOLS = [
     # ── Chat ──
     Tool(
-        name="chat",
+        name="chat_girlfriend",
         description="Process a user message through the girlfriend-agent personality engine. Updates intimacy/attributes based on interaction type, injects persona prompt + memory context + de-AI instructions. Returns a complete prompt that should be fed into your LLM for character-driven response generation.",
         inputSchema={
             "type": "object",
@@ -108,23 +108,23 @@ TOOLS = [
     ),
     # ── Status ──
     Tool(
-        name="status",
+        name="status_girlfriend",
         description="Get current relationship state: level, intimacy points, all 8 attributes (care/understanding/expression/memory/humor/intuition/courage/sensitivity), de-AI scores, nickname, conflict mode.",
         inputSchema={"type": "object", "properties": {}},
     ),
     Tool(
-        name="health",
+        name="health_girlfriend",
         description="Check engine health status and whether the embedding model is loaded.",
         inputSchema={"type": "object", "properties": {}},
     ),
     # ── Persona ──
     Tool(
-        name="persona_get",
+        name="persona_get_girlfriend",
         description="Get current persona configuration including personality dimensions (warmth/rationality/independence/humor/patience/curiosity/expressiveness), speech style, likes, and dislikes.",
         inputSchema={"type": "object", "properties": {}},
     ),
     Tool(
-        name="persona_update",
+        name="persona_update_girlfriend",
         description="Update a specific persona field. Pre-validates before mutation — invalid values are rejected without corrupting state. Supports dot-path notation (e.g. 'personality_base.warmth'). Commits change to git.",
         inputSchema={
             "type": "object",
@@ -136,7 +136,7 @@ TOOLS = [
         },
     ),
     Tool(
-        name="persona_apply_template",
+        name="persona_apply_template_girlfriend",
         description="Apply a preset persona template. Available: default, tsundere, gentle, lively, intellectual, little_sister, custom_skeleton. Resets personality dimensions to template values and commits to git.",
         inputSchema={
             "type": "object",
@@ -148,7 +148,7 @@ TOOLS = [
     ),
     # ── Memory (Vector) ──
     Tool(
-        name="memory_update",
+        name="memory_update_girlfriend",
         description="Store a new memory fragment in the long-term vector store. Memories are semantically searchable and decay over time following Ebbinghaus forgetting curve.",
         inputSchema={
             "type": "object",
@@ -160,7 +160,7 @@ TOOLS = [
         },
     ),
     Tool(
-        name="memory_search",
+        name="memory_search_girlfriend",
         description="Search long-term memories by semantic similarity. Returns top-k matching fragments with their weights and metadata.",
         inputSchema={
             "type": "object",
@@ -173,7 +173,7 @@ TOOLS = [
         },
     ),
     Tool(
-        name="memory_reinforce",
+        name="memory_reinforce_girlfriend",
         description="Strengthen a specific memory's weight to prevent it from decaying. Use after a memory is referenced in conversation to reinforce recall.",
         inputSchema={
             "type": "object",
@@ -185,12 +185,12 @@ TOOLS = [
         },
     ),
     Tool(
-        name="memory_decay",
+        name="memory_decay_girlfriend",
         description="Execute memory decay on both vector memories and graph nodes. Reduces weights over time following the forgetting curve. Should be called periodically.",
         inputSchema={"type": "object", "properties": {}},
     ),
     Tool(
-        name="memory_emotion_trend",
+        name="memory_emotion_trend_girlfriend",
         description="Analyze emotional patterns from recent conversation sessions. Returns positive/negative trend data over time.",
         inputSchema={
             "type": "object",
@@ -201,7 +201,7 @@ TOOLS = [
     ),
     # ── Memory (Graph / Episodic) ──
     Tool(
-        name="graph_add_entity",
+        name="graph_add_entity_girlfriend",
         description="Add an entity node to the episodic knowledge graph. Idempotent — if entity already exists, merges properties and returns existing node_id with created=false.",
         inputSchema={
             "type": "object",
@@ -213,7 +213,7 @@ TOOLS = [
         },
     ),
     Tool(
-        name="graph_add_relation",
+        name="graph_add_relation_girlfriend",
         description="Add a relation edge between two entities. Idempotent — if relation already exists, strengthens weight instead of creating duplicate.",
         inputSchema={
             "type": "object",
@@ -226,7 +226,7 @@ TOOLS = [
         },
     ),
     Tool(
-        name="graph_add_event",
+        name="graph_add_event_girlfriend",
         description="Add an episodic event to the knowledge graph with optional associated entities and emotion tag.",
         inputSchema={
             "type": "object",
@@ -239,7 +239,7 @@ TOOLS = [
         },
     ),
     Tool(
-        name="graph_search",
+        name="graph_search_girlfriend",
         description="Search the episodic knowledge graph using BFS with inverted index optimization. Returns matching nodes, edges, and a context summary.",
         inputSchema={
             "type": "object",
@@ -252,7 +252,7 @@ TOOLS = [
         },
     ),
     Tool(
-        name="graph_timeline",
+        name="graph_timeline_girlfriend",
         description="Get the chronological timeline of events related to a specific entity in the knowledge graph.",
         inputSchema={
             "type": "object",
@@ -263,7 +263,7 @@ TOOLS = [
         },
     ),
     Tool(
-        name="graph_batch_build",
+        name="graph_batch_build_girlfriend",
         description="Batch build episodic graph from recent conversation sessions. Extracts entities and relations from session data.",
         inputSchema={
             "type": "object",
@@ -273,43 +273,43 @@ TOOLS = [
         },
     ),
     Tool(
-        name="graph_stats",
+        name="graph_stats_girlfriend",
         description="Get knowledge graph statistics: node counts by type, edge counts, graph density.",
         inputSchema={"type": "object", "properties": {}},
     ),
     # ── Evolution ──
     Tool(
-        name="evolve_run",
+        name="evolve_run_girlfriend",
         description="Run an evolution cycle: analyze recent sessions for patterns (topics, emotions, hidden needs), micro-adjust personality dimensions (≤10% per step), process level-up if threshold reached, git commit. Trigger every 7 conversations.",
         inputSchema={"type": "object", "properties": {}},
     ),
     Tool(
-        name="evolve_direction",
+        name="evolve_direction_girlfriend",
         description="Get current evolution direction — which ending trajectory the relationship is heading toward based on accumulated attribute changes.",
         inputSchema={"type": "object", "properties": {}},
     ),
     Tool(
-        name="evolve_endings",
+        name="evolve_endings_girlfriend",
         description="List all 56 possible evolution endings (8 attributes × 7 secondary dimensions). Each ending represents a unique relationship trajectory.",
         inputSchema={"type": "object", "properties": {}},
     ),
     Tool(
-        name="evolve_progress",
+        name="evolve_progress_girlfriend",
         description="Get evolution progress for each attribute (0.0-1.0 scale) showing how far along each dimension has evolved.",
         inputSchema={"type": "object", "properties": {}},
     ),
     Tool(
-        name="evolve_history",
+        name="evolve_history_girlfriend",
         description="Get git commit history of all evolution adjustments. Each commit records personality changes made during that evolution cycle.",
         inputSchema={"type": "object", "properties": {}},
     ),
     Tool(
-        name="evolve_revert",
+        name="evolve_revert_girlfriend",
         description="Revert the most recent evolution adjustment. Restores personality and relationship state to the previous git commit.",
         inputSchema={"type": "object", "properties": {}},
     ),
     Tool(
-        name="evolve_revert_to",
+        name="evolve_revert_to_girlfriend",
         description="Revert to a specific evolution version by git commit hash. Restores all state (persona + relationship) to that point in history.",
         inputSchema={
             "type": "object",
@@ -321,7 +321,7 @@ TOOLS = [
     ),
     # ── Rollback ──
     Tool(
-        name="rollback",
+        name="rollback_girlfriend",
         description="Full state rollback — revert both persona and relationship to a specific git commit. More comprehensive than evolve_revert which only rolls back evolution adjustments.",
         inputSchema={
             "type": "object",
@@ -346,7 +346,7 @@ async def call_tool(name: str, arguments: dict) -> list[TextContent]:
         config = e["config"]
 
         # ── Chat ──
-        if name == "chat":
+        if name == "chat_girlfriend":
             chat_service = ChatService(
                 persona_engine=e["persona_engine"],
                 memory_engine=e["memory_engine"],
@@ -371,7 +371,7 @@ async def call_tool(name: str, arguments: dict) -> list[TextContent]:
             })
 
         # ── Status ──
-        if name == "status":
+        if name == "status_girlfriend":
             rel = e["relationship"]
             return _json_result({
                 "current_level": rel.current_level,
@@ -382,17 +382,17 @@ async def call_tool(name: str, arguments: dict) -> list[TextContent]:
                 "de_ai_score": rel.de_ai_score.model_dump(),
             })
 
-        if name == "health":
+        if name == "health_girlfriend":
             return _json_result({
                 "status": "ok",
                 "embedding_loaded": e["memory_engine"].client is not None,
             })
 
         # ── Persona ──
-        if name == "persona_get":
+        if name == "persona_get_girlfriend":
             return _json_result(e["persona"].model_dump())
 
-        if name == "persona_update":
+        if name == "persona_update_girlfriend":
             result = e["persona_engine"].update_persona_field(
                 e["persona"], arguments["field"], arguments["value"]
             )
@@ -400,7 +400,7 @@ async def call_tool(name: str, arguments: dict) -> list[TextContent]:
             e["git_manager"].commit("persona update: " + arguments["field"])
             return _json_result({"status": "ok", "field": arguments["field"], "validated": True})
 
-        if name == "persona_apply_template":
+        if name == "persona_apply_template_girlfriend":
             from src.core.persona import PersonaConfig
             template_id = arguments["template_id"]
             template_path = os.path.join(config.templates_dir, f"{template_id}.json")
@@ -414,14 +414,14 @@ async def call_tool(name: str, arguments: dict) -> list[TextContent]:
             return _json_result({"status": "ok", "template": template_id, "persona": e["persona"].model_dump()})
 
         # ── Memory (Vector) ──
-        if name == "memory_update":
+        if name == "memory_update_girlfriend":
             chunk_id = e["memory_engine"].store_memory(
                 arguments["content"],
                 arguments.get("memory_type", "fact"),
             )
             return _json_result({"status": "ok", "chunk_id": chunk_id})
 
-        if name == "memory_search":
+        if name == "memory_search_girlfriend":
             results = e["memory_engine"].search_memories(
                 arguments["query"],
                 n=arguments.get("n", 5),
@@ -429,26 +429,26 @@ async def call_tool(name: str, arguments: dict) -> list[TextContent]:
             )
             return _json_result({"results": results})
 
-        if name == "memory_reinforce":
+        if name == "memory_reinforce_girlfriend":
             e["memory_engine"].reinforce_memory(
                 arguments["chunk_id"],
                 arguments.get("strength", 0.1),
             )
             return _json_result({"status": "ok"})
 
-        if name == "memory_decay":
+        if name == "memory_decay_girlfriend":
             e["memory_engine"].decay_all_weights()
             e["graph_engine"].decay_graph_weights()
             e["graph_engine"].save_graph()
             return _json_result({"status": "ok"})
 
-        if name == "memory_emotion_trend":
+        if name == "memory_emotion_trend_girlfriend":
             sessions = e["memory_engine"].load_recent_sessions(count=arguments.get("count", 10))
             trend = e["memory_engine"].compute_emotion_trend(sessions)
             return _json_result(trend)
 
         # ── Memory (Graph) ──
-        if name == "graph_add_entity":
+        if name == "graph_add_entity_girlfriend":
             builder = e["episodic_builder"]
             existing_id = builder._find_entity(arguments["entity_name"])
             node_id = builder.add_entity(
@@ -458,7 +458,7 @@ async def call_tool(name: str, arguments: dict) -> list[TextContent]:
             e["graph_engine"].save_graph()
             return _json_result({"status": "ok", "node_id": node_id, "created": not existing_id})
 
-        if name == "graph_add_relation":
+        if name == "graph_add_relation_girlfriend":
             builder = e["episodic_builder"]
             success = builder.add_relation(
                 arguments["source_entity"],
@@ -468,7 +468,7 @@ async def call_tool(name: str, arguments: dict) -> list[TextContent]:
             e["graph_engine"].save_graph()
             return _json_result({"status": "ok" if success else "error"})
 
-        if name == "graph_add_event":
+        if name == "graph_add_event_girlfriend":
             builder = e["episodic_builder"]
             event_id = builder.add_event(
                 arguments["description"],
@@ -479,7 +479,7 @@ async def call_tool(name: str, arguments: dict) -> list[TextContent]:
             e["graph_engine"].save_graph()
             return _json_result({"status": "ok", "event_id": event_id})
 
-        if name == "graph_search":
+        if name == "graph_search_girlfriend":
             result = e["graph_engine"].search_graph(
                 arguments["query"],
                 arguments.get("max_depth", 3),
@@ -487,50 +487,50 @@ async def call_tool(name: str, arguments: dict) -> list[TextContent]:
             )
             return _json_result(result.model_dump())
 
-        if name == "graph_timeline":
+        if name == "graph_timeline_girlfriend":
             timeline = e["graph_engine"].get_timeline(arguments["entity_id"])
             return _json_result({"timeline": timeline})
 
-        if name == "graph_batch_build":
+        if name == "graph_batch_build_girlfriend":
             sessions = e["memory_engine"].load_recent_sessions(count=arguments.get("session_count", 7))
             stats = e["episodic_builder"].batch_build(sessions)
             return _json_result({"status": "ok", "stats": stats})
 
-        if name == "graph_stats":
+        if name == "graph_stats_girlfriend":
             return _json_result(e["graph_engine"].get_stats())
 
         # ── Evolution ──
-        if name == "evolve_run":
+        if name == "evolve_run_girlfriend":
             result = e["evolve_engine"].run_evolution_cycle(
                 e["persona"], e["relationship"]
             )
             e["state_manager"].save_relationship(e["relationship"])
             return _json_result(result)
 
-        if name == "evolve_direction":
+        if name == "evolve_direction_girlfriend":
             direction = e["evolve_engine"].get_evolution_direction(e["persona"], e["relationship"])
             return _json_result(direction)
 
-        if name == "evolve_endings":
+        if name == "evolve_endings_girlfriend":
             from src.core.evolve import ENDINGS_LIBRARY
             return _json_result({"endings": ENDINGS_LIBRARY, "total": len(ENDINGS_LIBRARY)})
 
-        if name == "evolve_progress":
+        if name == "evolve_progress_girlfriend":
             progress = e["evolve_engine"].get_attribute_progress(e["relationship"])
             return _json_result({"progress": progress, "level": e["relationship"].current_level})
 
-        if name == "evolve_history":
+        if name == "evolve_history_girlfriend":
             commits = e["git_manager"].get_evolution_commits()
             return _json_result({"commits": commits})
 
-        if name == "evolve_revert":
+        if name == "evolve_revert_girlfriend":
             result = e["evolve_engine"].revert_to_version(e["persona"], e["relationship"], "HEAD~1")
             if result.get("success"):
                 e["persona"] = e["state_manager"].load_persona(config)
                 e["relationship"] = e["state_manager"].load_relationship(config)
             return _json_result(result)
 
-        if name == "evolve_revert_to":
+        if name == "evolve_revert_to_girlfriend":
             result = e["evolve_engine"].revert_to_version(
                 e["persona"], e["relationship"], arguments["commit_hash"]
             )
@@ -540,7 +540,7 @@ async def call_tool(name: str, arguments: dict) -> list[TextContent]:
             return _json_result(result)
 
         # ── Rollback ──
-        if name == "rollback":
+        if name == "rollback_girlfriend":
             commit_hash = arguments["commit_hash"]
             e["git_manager"].checkout(commit_hash)
             e["persona"] = e["state_manager"].load_persona(config)
