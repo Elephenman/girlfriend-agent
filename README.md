@@ -12,6 +12,7 @@ Persona context injection · Episodic memory · Evolution system · Git rollback
 [![Python](https://img.shields.io/badge/python-3.10%2B-blue)]()
 [![License](https://img.shields.io/badge/license-MIT-green)]()
 [![FastAPI](https://img.shields.io/badge/FastAPI-0.136-orange)]()
+[![MCP](https://img.shields.io/badge/MCP-26%20tools-purple)]()
 
 </div>
 
@@ -26,6 +27,7 @@ Persona context injection · Episodic memory · Evolution system · Git rollback
 - **56 unique endings** — 8 attributes × 7 secondary = diverse relationship trajectories
 - **Async-safe** — asyncio.Lock protects read-modify-write sequences; ChatService separates lock-free reads from lock-guarded mutations
 - **CQRS graph** — `get_node_info` (pure query) + `touch_node` (access tracking) for clean read/write separation
+- **MCP Server** — 26 tools as native MCP protocol, direct integration with Claude Code / Cursor / Windsurf
 - **612 tests** — unit, integration, concurrency, and full-chain coverage with 0 warnings
 
 ---
@@ -46,6 +48,62 @@ python skills/scripts/status.py
 python skills/scripts/evolve.py
 python skills/scripts/update.py "她喜欢猫咪" --type preference
 ```
+
+### MCP Server Integration (Recommended)
+
+Integrate girlfriend-agent directly into Claude Code, Cursor, Windsurf, or any MCP-compatible AI tool. No separate HTTP server needed — the MCP server runs as a child process and provides all 26 tools natively.
+
+Add to your project's `.claude/settings.json`:
+
+```json
+{
+  "mcpServers": {
+    "girlfriend-agent": {
+      "command": "python",
+      "args": ["-m", "src.mcp_server"]
+    }
+  }
+}
+```
+
+Once configured, the AI assistant will automatically see all girlfriend-agent tools and can:
+- Chat with persona context injection (`chat`)
+- Store and search memories (`memory_update`, `memory_search`)
+- Build episodic knowledge graph (`graph_add_entity`, `graph_search`)
+- Trigger evolution cycles (`evolve_run`)
+- Check relationship status (`status`)
+- Roll back to any previous state (`evolve_revert_to`, `rollback`)
+
+For global availability (all projects), add to `~/.claude/settings.json` instead and set the `GIRLFRIEND_AGENT_DATA` env var:
+
+```json
+{
+  "mcpServers": {
+    "girlfriend-agent": {
+      "command": "python",
+      "args": ["-m", "src.mcp_server"],
+      "env": {
+        "GIRLFRIEND_AGENT_DATA": "/path/to/project"
+      }
+    }
+  }
+}
+```
+
+<details>
+<summary>All 26 MCP Tools</summary>
+
+| Category | Tools |
+|---|---|
+| **Chat** | `chat` — process message with persona + memory injection |
+| **Status** | `status`, `health` — relationship state + engine health |
+| **Persona** | `persona_get`, `persona_update`, `persona_apply_template` — read/update/switch personality |
+| **Memory** | `memory_update`, `memory_search`, `memory_reinforce`, `memory_decay`, `memory_emotion_trend` — store/search/decay vector memories |
+| **Graph** | `graph_add_entity`, `graph_add_relation`, `graph_add_event`, `graph_search`, `graph_timeline`, `graph_batch_build`, `graph_stats` — episodic knowledge graph |
+| **Evolve** | `evolve_run`, `evolve_direction`, `evolve_endings`, `evolve_progress`, `evolve_history`, `evolve_revert`, `evolve_revert_to` — evolution cycle + rollback |
+| **Rollback** | `rollback` — full state rollback to any git commit |
+
+</details>
 
 ### Environment Variables
 
@@ -228,6 +286,7 @@ Decay:
 ```
 src/
 ├── engine_server.py            # FastAPI entry point + lifespan + asyncio.Lock
+├── mcp_server.py               # MCP Server adapter (26 tools, stdio transport)
 ├── core/
 │   ├── models.py               # Pydantic data models + field validators
 │   ├── config.py               # Paths, constants (INTERACTION_TYPES auto-derived), init
@@ -387,6 +446,7 @@ MIT License — feel free to use, modify, and distribute.
 - **56种独特结局** — 8主属性 × 7副属性 = 多样化关系轨迹
 - **并发安全** — asyncio.Lock 保护读-改-写序列；ChatService 分离锁外读取与锁内变更
 - **CQRS图谱** — `get_node_info`（纯查询）+ `touch_node`（访问追踪）读写分离
+- **MCP Server** — 26个工具作为原生 MCP 协议，直接集成 Claude Code / Cursor / Windsurf
 - **612个测试** — 单元、集成、并发、全链路覆盖，0 warnings
 
 ---
@@ -407,6 +467,31 @@ python skills/scripts/status.py
 python skills/scripts/evolve.py
 python skills/scripts/update.py "她喜欢猫咪" --type preference
 ```
+
+### MCP Server 集成（推荐）
+
+将 girlfriend-agent 直接集成到 Claude Code、Cursor、Windsurf 或任何兼容 MCP 的 AI 工具。无需单独运行 HTTP 服务 — MCP server 作为子进程运行，原生提供所有26个工具。
+
+添加到项目的 `.claude/settings.json`：
+
+```json
+{
+  "mcpServers": {
+    "girlfriend-agent": {
+      "command": "python",
+      "args": ["-m", "src.mcp_server"]
+    }
+  }
+}
+```
+
+配置后，AI 助手会自动看到所有 girlfriend-agent 工具，可以：
+- 带人格上下文对话（`chat`）
+- 存储和搜索记忆（`memory_update`、`memory_search`）
+- 构建情景知识图谱（`graph_add_entity`、`graph_search`）
+- 触发进化周期（`evolve_run`）
+- 查看关系状态（`status`）
+- 回退到任意历史状态（`evolve_revert_to`、`rollback`）
 
 ### 环境变量
 
