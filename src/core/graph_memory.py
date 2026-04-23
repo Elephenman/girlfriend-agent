@@ -3,6 +3,7 @@ import logging
 import math
 import os
 import uuid
+from collections import deque
 from datetime import datetime
 
 import networkx as nx
@@ -19,12 +20,38 @@ class GraphMemoryEngine:
     def __init__(self, config: Config):
         self.config = config
         self._graph: nx.DiGraph | None = None
+        # Label inverted index: maps lowercase label substrings to node_ids
+        # Populated lazily on first search_graph call, updated on add_node
+        self._label_index: dict[str, set[str]] | None = None
 
     @property
     def graph(self) -> nx.DiGraph:
         if self._graph is None:
             self._graph = self.load_graph()
         return self._graph
+
+    def _update_label_index(self, node_id: str, label: str) -> None:
+        """Add node to the label inverted index. Called on add_node."""
+        if self._label_index is None:
+            return  # Index not initialized yet; will be built lazily on first search
+        label_lower = label.lower()
+        # Index all contiguous substrings of the label
+        # This ensures that searching for any substring of the label will find the node
+        for i in range(len(label_lower)):
+            for j in range(i + 1, len(label_lower) + 1):
+                self._label_index.setdefault(label_lower[i:j], set()).add(node_id)
+
+    def _build_label_index(self) -> dict[str, set[str]]:
+        """Build label inverted index from scratch (lazy initialization on first search)."""
+        index: dict[str, set[str]] = {}
+        for nid, data in self.graph.nodes(data=True):
+            label = data.get("label", "").lower()
+            if not label:
+                continue
+            for i in range(len(label)):
+                for j in range(i + 1, len(label) + 1):
+                    index.setdefault(label[i:j], set()).add(nid)
+        return index
 
     def add_node(
         self,
@@ -48,6 +75,7 @@ class GraphMemoryEngine:
             last_accessed=now,
             access_count=0,
         )
+        self._update_label_index(node_id, label)
         return node_id
 
     def add_edge(
@@ -69,15 +97,12 @@ class GraphMemoryEngine:
             created_date=now,
         )
 
-    def get_node(self, node_id: str) -> GraphNode | None:
-        """获取节点"""
+    def get_node_info(self, node_id: str) -> GraphNode | None:
+        """获取节点信息（纯查询，无副作用）"""
         if node_id not in self.graph:
             return None
         data = self.graph.nodes[node_id]
         now = datetime.now().strftime("%Y-%m-%d")
-        # 更新访问
-        data["access_count"] = data.get("access_count", 0) + 1
-        data["last_accessed"] = now
         return GraphNode(
             node_id=node_id,
             node_type=data.get("node_type", "entity"),
@@ -89,18 +114,55 @@ class GraphMemoryEngine:
             access_count=data.get("access_count", 0),
         )
 
+    def touch_node(self, node_id: str) -> None:
+        """更新节点访问计数和最后访问时间（副作用操作）"""
+        if node_id not in self.graph:
+            return
+        data = self.graph.nodes[node_id]
+        data["access_count"] = data.get("access_count", 0) + 1
+        data["last_accessed"] = datetime.now().strftime("%Y-%m-%d")
+
+    def get_node(self, node_id: str, touch: bool = True) -> GraphNode | None:
+        """获取节点信息，可选更新访问计数（向后兼容接口）
+
+        Args:
+            node_id: Node identifier.
+            touch: If True, update access_count and last_accessed (original behavior).
+                   If False, pure query without side effects.
+
+        Default touch=True maintains backward compatibility with original get_node behavior.
+        """
+        result = self.get_node_info(node_id)
+        if result is not None and touch:
+            self.touch_node(node_id)
+            result = self.get_node_info(node_id)  # re-read to reflect updated values
+        return result
+
     def search_graph(
         self, query: str, max_depth: int = 3, max_nodes: int = 20
     ) -> GraphSearchResult:
-        """从匹配标签的种子节点出发进行BFS遍历"""
-        # 1. 找种子节点（标签包含query的节点）
-        seed_nodes: list[str] = []
+        """从匹配标签的种子节点出发进行BFS遍历
+
+        Uses label inverted index for efficient seed node lookup.
+        Index is built lazily on first call and maintained incrementally.
+        """
+        # 1. Build label index lazily if not yet initialized
+        if self._label_index is None:
+            self._label_index = self._build_label_index()
+
+        # 2. Find seed nodes via inverted index (O(1) lookup instead of O(N) scan)
         query_lower = query.lower()
-        for nid, data in self.graph.nodes(data=True):
-            if query_lower in data.get("label", "").lower():
-                seed_nodes.append(nid)
-            elif query_lower in str(data.get("properties", {})).lower():
-                seed_nodes.append(nid)
+        seed_candidates = self._label_index.get(query_lower, set())
+
+        # Also check properties as fallback (no index for properties, scan is needed)
+        seed_nodes: list[str] = list(seed_candidates)
+        if not seed_nodes or len(seed_nodes) < 5:
+            # Supplement with property-based matches (limited scan for completeness)
+            for nid, data in self.graph.nodes(data=True):
+                if nid in seed_candidates:
+                    continue
+                if query_lower in str(data.get("properties", {})).lower():
+                    seed_nodes.append(nid)
 
         if not seed_nodes:
             return GraphSearchResult(
@@ -110,10 +172,10 @@ class GraphMemoryEngine:
         # 2. BFS遍历
         visited_nodes: set[str] = set()
         visited_edges: list[GraphEdge] = []
-        queue: list[tuple[str, int]] = [(n, 0) for n in seed_nodes]
+        queue: deque[tuple[str, int]] = deque((n, 0) for n in seed_nodes)
 
         while queue and len(visited_nodes) < max_nodes:
-            node_id, depth = queue.pop(0)
+            node_id, depth = queue.popleft()
             if node_id in visited_nodes or depth > max_depth:
                 continue
             visited_nodes.add(node_id)
@@ -273,6 +335,9 @@ class GraphMemoryEngine:
 
     def decay_graph_weights(self) -> None:
         """图节点/边权重衰减"""
+        import time
+        start_time = time.monotonic()
+
         decay_lambda = self.config.WEIGHT_DECAY_LAMBDA
         now = datetime.now()
         for nid, data in self.graph.nodes(data=True):
@@ -288,6 +353,12 @@ class GraphMemoryEngine:
         for u, v, data in self.graph.edges(data=True):
             old_weight = data.get("weight", 1.0)
             data["weight"] = max(old_weight * 0.95, 0.01)
+
+        elapsed = time.monotonic() - start_time
+        logger.info(
+            "decay_graph_weights completed in %.2fs, %d nodes, %d edges",
+            elapsed, self.graph.number_of_nodes(), self.graph.number_of_edges(),
+        )
 
     def reinforce_path(
         self, path_node_ids: list[str], strength: float = 0.1
@@ -351,11 +422,25 @@ class GraphMemoryEngine:
         }
 
     def _find_node_by_label(self, label: str) -> str | None:
-        """通过标签模糊查找节点ID"""
+        """通过标签查找节点ID - 确匹配优先，模糊匹配按相似度排序"""
         label_lower = label.lower()
+
+        # 1. Exact match (highest priority)
         for nid, data in self.graph.nodes(data=True):
             if data.get("label", "").lower() == label_lower:
                 return nid
-            if label_lower in data.get("label", "").lower():
-                return nid
+
+        # 2. Fuzzy match: collect all substring matches, sort by label length diff
+        # Shorter difference = closer match (e.g., "猫" prefers "猫" over "小猫咪")
+        candidates: list[tuple[int, str]] = []
+        for nid, data in self.graph.nodes(data=True):
+            node_label = data.get("label", "").lower()
+            if label_lower in node_label:
+                length_diff = abs(len(node_label) - len(label_lower))
+                candidates.append((length_diff, nid))
+
+        if candidates:
+            candidates.sort(key=lambda x: x[0])
+            return candidates[0][1]
+
         return None

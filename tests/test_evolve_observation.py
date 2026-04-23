@@ -16,6 +16,8 @@ from src.core.models import (
     EvolutionState,
 )
 
+from src.core.memory import MemoryEngine
+
 
 # ---------------------------------------------------------------------------
 # Fixtures
@@ -29,6 +31,14 @@ def evolve_engine(temp_data_dir):
     git_mgr = GitManager(data_dir=temp_data_dir)
     git_mgr.init_repo()
     engine = EvolveEngine(config, git_mgr)
+    return engine
+
+
+@pytest.fixture
+def memory_engine(temp_data_dir):
+    config = Config(data_dir=temp_data_dir)
+    config.ensure_dirs()
+    engine = MemoryEngine(config)
     return engine
 
 
@@ -160,13 +170,13 @@ class TestAnalyzeEmotionTone:
 class TestInferHiddenNeeds:
     def test_negative_emotion_triggers_care_need(self, evolve_engine):
         sessions = _make_sessions(n=3, emotion_summaries=["焦虑", "压力", "难过"])
-        needs = evolve_engine._infer_hidden_needs(sessions, {}, "negative")
+        needs = evolve_engine._infer_hidden_needs(sessions, {}, {}, "negative")
         assert "需要更多关心和理解" in needs
 
     def test_repeated_topic_triggers_deep_support(self, evolve_engine):
         sessions = _make_sessions(n=5)
         topic_dist = {"工作": 3, "生活": 1}
-        needs = evolve_engine._infer_hidden_needs(sessions, topic_dist, "neutral")
+        needs = evolve_engine._infer_hidden_needs(sessions, topic_dist, {}, "neutral")
         assert any("工作" in need and "持续关注" in need for need in needs)
 
     def test_deep_conversation_ratio_triggers_resonance(self, evolve_engine):
@@ -174,7 +184,8 @@ class TestInferHiddenNeeds:
             n=4,
             interaction_types=["deep_conversation", "deep_conversation", "emotion_companion", "daily_chat"],
         )
-        needs = evolve_engine._infer_hidden_needs(sessions, {}, "neutral")
+        type_dist = {"deep_conversation": 2, "emotion_companion": 1, "daily_chat": 1}
+        needs = evolve_engine._infer_hidden_needs(sessions, {}, type_dist, "neutral")
         assert "倾向深度交流，需要情感共鸣" in needs
 
     def test_light_chat_ratio_triggers_happiness(self, evolve_engine):
@@ -182,7 +193,8 @@ class TestInferHiddenNeeds:
             n=4,
             interaction_types=["light_chat", "light_chat", "light_chat", "daily_chat"],
         )
-        needs = evolve_engine._infer_hidden_needs(sessions, {}, "neutral")
+        type_dist = {"light_chat": 3, "daily_chat": 1}
+        needs = evolve_engine._infer_hidden_needs(sessions, {}, type_dist, "neutral")
         assert "倾向轻松互动，需要快乐和陪伴" in needs
 
     def test_max_five_needs(self, evolve_engine):
@@ -193,7 +205,8 @@ class TestInferHiddenNeeds:
             interaction_types=["deep_conversation"] * 7,
         )
         needs = evolve_engine._infer_hidden_needs(
-            sessions, {"a": 3, "b": 3, "c": 1, "d": 4, "e": 5}, "negative",
+            sessions, {"a": 3, "b": 3, "c": 1, "d": 4, "e": 5},
+            {"deep_conversation": 7}, "negative",
         )
         assert len(needs) <= 5
 
@@ -465,3 +478,43 @@ class TestBackwardCompatibility:
         assert isinstance(adj, dict)
         # warmth should be adjusted from care=50
         assert adj.get("warmth", 0) > 0
+
+
+# ===========================================================================
+# Emotion keyword impact assessment (Round 1 unified keyword set)
+# ===========================================================================
+
+
+class TestEmotionKeywordImpact:
+    """Verify unified keyword set correctly classifies emotions that were previously missed"""
+
+    def test_positive_keywords_now_match_喜欢_爱(self, evolve_engine):
+        """Before Round 1, memory.py missed '喜欢' and '爱' - now unified set includes them"""
+        sessions = [
+            SessionMemory(conversation_id="c1", emotion_summary="我很喜欢这个"),
+            SessionMemory(conversation_id="c2", emotion_summary="爱你"),
+            SessionMemory(conversation_id="c3", emotion_summary="一般般"),
+        ]
+        tone = evolve_engine._analyze_emotion_tone(sessions)
+        assert tone == "positive"  # 2 positive (喜欢+爱) vs 0 negative
+
+    def test_negative_keywords_now_match_烦_害怕_紧张(self, evolve_engine):
+        """Before Round 1, memory.py missed '烦', '害怕', '紧张' - now unified set includes them"""
+        sessions = [
+            SessionMemory(conversation_id="c1", emotion_summary="真的很烦"),
+            SessionMemory(conversation_id="c2", emotion_summary="害怕明天"),
+            SessionMemory(conversation_id="c3", emotion_summary="紧张"),
+        ]
+        tone = evolve_engine._analyze_emotion_tone(sessions)
+        assert tone == "negative"  # 3 negative vs 0 positive
+
+    def test_emotion_trend_with_new_keywords(self, memory_engine):
+        """Verify compute_emotion_trend handles expanded keyword set"""
+        sessions = [
+            SessionMemory(conversation_id="c1", emotion_summary="喜欢", interaction_type="daily_chat"),
+            SessionMemory(conversation_id="c2", emotion_summary="烦", interaction_type="daily_chat"),
+            SessionMemory(conversation_id="c3", emotion_summary="开心", interaction_type="daily_chat"),
+        ]
+        trend = memory_engine.compute_emotion_trend(sessions)
+        assert trend["trend"] in ("improving", "stable", "declining")
+        # 2 positive (喜欢+开心) vs 1 negative (烦) -> improving or stable

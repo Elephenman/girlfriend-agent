@@ -1,4 +1,5 @@
 """Full-chain integration test: chat → memory → evolve → rollback"""
+import asyncio
 import json
 import os
 import tempfile
@@ -12,7 +13,8 @@ from src.core.models import PersonaConfig, RelationshipState
 from src.core.persona import PersonaEngine
 from src.core.memory import MemoryEngine
 from src.core.evolve import EvolveEngine
-from src.engine_server import app, _save_state
+from src.core.state_manager import StateManager
+from src.engine_server import app
 
 
 @pytest.fixture
@@ -21,18 +23,23 @@ def full_env():
     try:
         config = Config(data_dir=os.path.join(td.name, "gf-agent"))
         config.ensure_dirs()
-        _save_state(config, PersonaConfig(), RelationshipState())
 
         git_mgr = GitManager(data_dir=config.data_dir)
         git_mgr.init_repo()
 
+        state_mgr = StateManager(config)
+        persona = state_mgr.load_or_init_persona()
+        relationship = state_mgr.load_or_init_relationship()
+
         app.state.config = config
-        app.state.persona = PersonaConfig()
-        app.state.relationship = RelationshipState()
+        app.state.persona = persona
+        app.state.relationship = relationship
         app.state.persona_engine = PersonaEngine(config)
         app.state.memory_engine = MemoryEngine(config)
         app.state.evolve_engine = EvolveEngine(config, git_mgr)
         app.state.git_manager = git_mgr
+        app.state.state_manager = state_mgr
+        app.state.state_lock = asyncio.Lock()
 
         yield config
     finally:

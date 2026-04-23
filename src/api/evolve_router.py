@@ -1,10 +1,7 @@
 # src/api/evolve_router.py
-import json
-import os
-
 from fastapi import APIRouter, Request
 
-from src.core.models import SessionMemory, RelationshipState
+from src.core.models import SessionMemory
 
 router = APIRouter()
 
@@ -14,19 +11,20 @@ async def evolve(request: Request):
     app = request.app
     evolve_engine = app.state.evolve_engine
     memory_engine = app.state.memory_engine
-    config = app.state.config
-    relationship = app.state.relationship
 
+    # Phase 1: Pure reads outside lock (session loading is IO-heavy)
     sessions = memory_engine.load_recent_sessions(count=7)
-
     if len(sessions) < 1:
         sessions = [SessionMemory(conversation_id="auto", interaction_type="daily_chat")]
 
-    relationship, log_entry = evolve_engine.run_evolution_cycle(sessions, relationship)
+    # Phase 2: State mutation under lock
+    async with app.state.state_lock:
+        relationship = app.state.relationship
+        relationship, log_entry = evolve_engine.run_evolution_cycle(sessions, relationship)
 
-    app.state.relationship = relationship
-    with open(config.relationship_config_path, "w", encoding="utf-8") as f:
-        json.dump(relationship.model_dump(), f, ensure_ascii=False, indent=2)
+        # Commit state mutation and persist
+        app.state.relationship = relationship
+        app.state.state_manager.persist_relationship(app)
 
     return {
         "adjustments": log_entry.adjustments,
@@ -44,13 +42,8 @@ async def revert_evolution(request: Request):
     result = evolve_engine.revert_last_evolution()
 
     if result["success"]:
-        # 重新加载 relationship state
-        config = request.app.state.config
-        rel_path = config.relationship_config_path
-        if os.path.exists(rel_path):
-            with open(rel_path, encoding="utf-8") as f:
-                rel_data = json.load(f)
-            request.app.state.relationship = RelationshipState(**rel_data)
+        async with request.app.state.state_lock:
+            request.app.state.state_manager.reload_all(request.app)
 
     return result
 
@@ -65,26 +58,30 @@ async def revert_to_version(request: Request):
     result = evolve_engine.revert_to_version(commit_hash)
 
     if result["success"]:
-        config = request.app.state.config
-        rel_path = config.relationship_config_path
-        if os.path.exists(rel_path):
-            with open(rel_path, encoding="utf-8") as f:
-                rel_data = json.load(f)
-            request.app.state.relationship = RelationshipState(**rel_data)
+        async with request.app.state.state_lock:
+            request.app.state.state_manager.reload_all(request.app)
 
     return result
 
 
 @router.get("/evolve/history")
 async def evolution_history(request: Request):
-    """获取进化历史（仅进化相关commit）"""
+    """获取进化历史（仅进化相关commit）
+
+    Read-only endpoint: reads from git_manager (immutable git history). No lock needed.
+    """
     git_manager = request.app.state.git_manager
     return {"commits": git_manager.get_evolution_commits()}
 
 
 @router.get("/evolve/direction")
 async def evolve_direction(request: Request):
-    """获取当前进化方向"""
+    """获取当前进化方向
+
+    Read-only endpoint: no lock needed. Safe in asyncio single-thread model because
+    Pydantic model assignment is atomic (no half-write state visible to other coroutines).
+    If switching to multi-thread/multi-process in the future, a read lock must be added here.
+    """
     evolve_engine = request.app.state.evolve_engine
     relationship = request.app.state.relationship
     return evolve_engine.get_full_evolution_direction(relationship)
@@ -92,7 +89,10 @@ async def evolve_direction(request: Request):
 
 @router.get("/evolve/endings")
 async def evolve_endings(request: Request):
-    """获取所有可能结局"""
+    """获取所有可能结局
+
+    Read-only endpoint: reads static data file. No lock needed.
+    """
     evolve_engine = request.app.state.evolve_engine
     endings = evolve_engine._load_endings()
     return {"endings": endings, "total": len(endings)}
@@ -100,7 +100,12 @@ async def evolve_endings(request: Request):
 
 @router.get("/evolve/progress")
 async def evolve_progress(request: Request):
-    """获取进化进度（各属性进度百分比）"""
+    """获取进化进度（各属性进度百分比）
+
+    Read-only endpoint: no lock needed. Safe in asyncio single-thread model because
+    Pydantic model assignment is atomic (no half-write state visible to other coroutines).
+    If switching to multi-thread/multi-process in the future, a read lock must be added here.
+    """
     evolve_engine = request.app.state.evolve_engine
     relationship = request.app.state.relationship
     progress = evolve_engine._calculate_progress(relationship)

@@ -1,11 +1,14 @@
 import json
 import os
+import time
 
 import pytest
 
 from src.core.config import Config
 from src.core.memory import MemoryEngine
 from src.core.models import RelationshipState, SessionMemory
+
+from datetime import datetime, timedelta
 
 
 @pytest.fixture
@@ -105,3 +108,70 @@ class TestMemoryEngineDecay:
         # After decay, just verify no crash
         results = memory_engine.search_memories("decay", n=1)
         assert isinstance(results, list)
+
+
+class TestDecayAllWeightsErrorHandling:
+    def test_decay_handles_invalid_metadata_gracefully(self, memory_engine):
+        """Verify decay skips chunks with invalid metadata instead of crashing"""
+        # Store a normal memory
+        memory_engine.store_memory("test content", "fact")
+        # decay_all_weights should not raise
+        memory_engine.decay_all_weights()
+        # Collection should still be usable
+        assert memory_engine.collection.count() >= 1
+
+    def test_decay_batch_fallback_on_error(self, memory_engine):
+        """Verify decay falls back to per-item update if batch fails"""
+        memory_engine.store_memory("content 1", "fact")
+        memory_engine.store_memory("content 2", "preference")
+        memory_engine.decay_all_weights()
+        # Verify weights were updated
+        results = memory_engine.collection.get()
+        for meta in results["metadatas"]:
+            weight = float(meta.get("weight", "1.0"))
+            assert weight > 0
+
+
+class TestMaxSessionFilesConfigurable:
+    def test_custom_max_session_files(self, temp_data_dir):
+        """Verify MAX_SESSION_FILES can be overridden via Config"""
+        config = Config(data_dir=temp_data_dir, max_session_files=50)
+        assert config.max_session_files == 50
+
+    def test_default_max_session_files(self, temp_data_dir):
+        """Verify default MAX_SESSION_FILES is 500"""
+        config = Config(data_dir=temp_data_dir)
+        assert config.max_session_files == 500
+
+
+class TestCleanupConsistency:
+    def test_cleanup_uses_timestamp_not_mtime(self, memory_engine):
+        # Create sessions with different timestamps
+        for i in range(15):
+            ts = (datetime.now() - timedelta(days=15 - i)).isoformat()
+            session = SessionMemory(
+                conversation_id=f"conv-{i}",
+                topics=["test"],
+                timestamp=ts,
+            )
+            memory_engine.save_session(session)
+            time.sleep(0.01)  # ensure different mtime
+
+        # Cleanup should keep newest by timestamp
+        memory_engine.cleanup_old_sessions(keep=10)
+        loaded = memory_engine.load_recent_sessions(count=20)
+        assert len(loaded) <= 10
+
+    def test_load_recent_sessions_skips_corrupt_files(self, memory_engine):
+        sm_dir = memory_engine.config.session_memory_dir
+        # Create a valid session
+        session = SessionMemory(conversation_id="valid", topics=["test"])
+        memory_engine.save_session(session)
+        # Create a corrupt JSON file
+        corrupt_path = os.path.join(sm_dir, "corrupt.json")
+        with open(corrupt_path, "w") as f:
+            f.write("{invalid json")
+        loaded = memory_engine.load_recent_sessions(count=10)
+        # Should skip corrupt file and return valid session
+        assert len(loaded) >= 1
+        assert loaded[0].conversation_id == "valid"

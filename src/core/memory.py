@@ -144,7 +144,10 @@ class MemoryEngine:
         return math.sqrt(access_count + 1) * math.exp(-decay_lambda * days)
 
     def decay_all_weights(self) -> None:
-        """基于真实天数的精确衰减（替代简单百分比衰减）"""
+        """基于真实天数的精确衰减（预验证 + 批量更新 + 错误容忍）"""
+        import time
+        start_time = time.monotonic()
+
         if self.collection.count() == 0:
             return
 
@@ -153,18 +156,56 @@ class MemoryEngine:
         all_metas = all_data["metadatas"]
         now = datetime.now()
 
-        for chunk_id, meta in zip(all_ids, all_metas):
+        # Pre-validate metadata before batch update
+        valid_ids = []
+        valid_metas = []
+        skipped = 0
+
+        for i, (chunk_id, meta) in enumerate(zip(all_ids, all_metas)):
             created = meta.get("created_date", now.strftime("%Y-%m-%d"))
             try:
                 days = (now - datetime.strptime(created, "%Y-%m-%d")).days
             except ValueError:
                 days = 0
+
             access_count = int(meta.get("access_count", "0"))
             new_weight = self.compute_weight(days=days, access_count=access_count)
             meta["weight"] = str(max(new_weight, 0.01))
 
-        for chunk_id, meta in zip(all_ids, all_metas):
-            self.collection.update(ids=[chunk_id], metadatas=[meta])
+            # Validate metadata fields are well-formed
+            try:
+                float(meta["weight"])
+                int(meta.get("access_count", "0"))
+                valid_ids.append(chunk_id)
+                valid_metas.append(meta)
+            except (ValueError, TypeError, KeyError) as e:
+                skipped += 1
+                logging.warning(
+                    "Skipping invalid metadata for chunk %s: %s", chunk_id, e
+                )
+
+        if skipped:
+            logging.warning("decay_all_weights: skipped %d invalid chunks out of %d", skipped, len(all_ids))
+
+        if not valid_ids:
+            return
+
+        # Try batch update first; fall back to per-item updates on failure
+        try:
+            self.collection.update(ids=valid_ids, metadatas=valid_metas)
+        except Exception as e:
+            logging.warning("Batch decay update failed (%s), falling back to per-item updates", e)
+            for chunk_id, meta in zip(valid_ids, valid_metas):
+                try:
+                    self.collection.update(ids=[chunk_id], metadatas=[meta])
+                except Exception as item_err:
+                    logging.warning("Failed to decay chunk %s: %s", chunk_id, item_err)
+
+        elapsed = time.monotonic() - start_time
+        logging.info(
+            "decay_all_weights completed in %.2fs, %d valid, %d skipped, total=%d",
+            elapsed, len(valid_ids), skipped, len(all_ids),
+        )
 
     def save_session(self, session: SessionMemory) -> None:
         path = os.path.join(
@@ -179,18 +220,37 @@ class MemoryEngine:
         if not os.path.isdir(sm_dir):
             return []
 
-        files = sorted(
-            [f for f in os.listdir(sm_dir) if f.endswith(".json")],
-            key=lambda f: os.path.getmtime(os.path.join(sm_dir, f)),
-            reverse=True,
-        )[:count]
+        # Safety: limit number of files scanned to prevent memory/time blow-up
+        json_files = [f for f in os.listdir(sm_dir) if f.endswith(".json")]
+        max_files = self.config.max_session_files  # Configurable via Config
+
+        if len(json_files) > max_files:
+            logging.warning(
+                "Session directory has %d files (limit %d). Pre-filtering by mtime.",
+                len(json_files), max_files,
+            )
+            # Sort by file modification time as fallback (more reliable than filename)
+            json_files_with_mtime = [
+                (f, os.path.getmtime(os.path.join(sm_dir, f)))
+                for f in json_files
+            ]
+            json_files_with_mtime.sort(key=lambda x: x[1], reverse=True)
+            json_files = [f for f, _ in json_files_with_mtime[:max_files]]
 
         sessions = []
-        for fname in files:
-            with open(os.path.join(sm_dir, fname), encoding="utf-8") as f:
-                data = json.load(f)
-            sessions.append(SessionMemory(**data))
-        return sessions
+        for fname in json_files:
+            fpath = os.path.join(sm_dir, fname)
+            try:
+                with open(fpath, encoding="utf-8") as f:
+                    data = json.load(f)
+                sessions.append(SessionMemory(**data))
+            except (json.JSONDecodeError, Exception) as e:
+                logging.warning("Skipping corrupt session file %s: %s", fname, e)
+                continue
+
+        # Sort by session timestamp, not file modification time
+        sessions.sort(key=lambda s: s.timestamp, reverse=True)
+        return sessions[:count]
 
     def cleanup_old_sessions(self, keep: int = 10) -> None:
         sm_dir = self.config.session_memory_dir
@@ -198,14 +258,32 @@ class MemoryEngine:
             return
 
         try:
-            files = sorted(
-                [f for f in os.listdir(sm_dir) if f.endswith(".json")],
-                key=lambda f: os.path.getmtime(os.path.join(sm_dir, f)),
-                reverse=True,
-            )
+            sessions = []
+            for fname in os.listdir(sm_dir):
+                if not fname.endswith(".json"):
+                    continue
+                fpath = os.path.join(sm_dir, fname)
+                try:
+                    with open(fpath, encoding="utf-8") as f:
+                        data = json.load(f)
+                    session = SessionMemory(**data)
+                    sessions.append((session.timestamp, fname))
+                except (json.JSONDecodeError, Exception):
+                    # Corrupt file - remove it
+                    try:
+                        os.remove(fpath)
+                    except OSError:
+                        pass
 
-            for fname in files[keep:]:
-                os.remove(os.path.join(sm_dir, fname))
+            # Sort by session timestamp, consistent with load_recent_sessions
+            sessions.sort(key=lambda x: x[0], reverse=True)
+
+            # Remove files beyond the keep limit
+            for _, fname in sessions[keep:]:
+                try:
+                    os.remove(os.path.join(sm_dir, fname))
+                except OSError:
+                    pass
         except Exception as e:
             logging.warning("Failed to cleanup old sessions: %s", e)
 
@@ -219,8 +297,8 @@ class MemoryEngine:
             return {"trend": "neutral", "recent_emotions": [], "summary": ""}
 
         # 简单情绪分类
-        positive_keywords = {"开心", "高兴", "快乐", "满意", "兴奋", "轻松", "愉快", "欣慰"}
-        negative_keywords = {"焦虑", "难过", "压力", "担心", "沮丧", "疲惫", "烦躁", "不开心", "累"}
+        positive_keywords = Config.POSITIVE_KEYWORDS
+        negative_keywords = Config.NEGATIVE_KEYWORDS
 
         recent = emotions[-5:]  # 最近5次
         pos_count = sum(1 for e in recent if any(k in e for k in positive_keywords))

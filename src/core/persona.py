@@ -4,7 +4,7 @@ import shutil
 
 from src.core.config import Config
 from src.core.models import (
-    PersonaConfig, PersonalityBase, RelationshipState,
+    PersonaConfig, PersonalityBase, RelationshipState, _clamp,
 )
 
 # Attribute → Personality dimension mapping with weights
@@ -18,10 +18,6 @@ ATTR_TO_PERSONALITY_MAP: dict[str, dict[str, float]] = {
     "courage": {"stubbornness": 0.5, "proactivity": 0.3, "shyness": -0.2},
     "sensitivity": {"warmth": 0.4, "shyness": 0.3, "gentleness": 0.3},
 }
-
-
-def _clamp(v: float, lo: float = 0.0, hi: float = 1.0) -> float:
-    return max(lo, min(hi, v))
 
 
 class PersonaEngine:
@@ -116,19 +112,27 @@ class PersonaEngine:
             return ""
         return "去AI味行为规则：" + "；".join(rules)
 
-    def update_persona_field(self, field: str, value, auto_commit: bool = True) -> None:
+    def update_persona_field(self, field: str, value, auto_commit: bool = True) -> PersonaConfig:
+        """更新 persona 字段，先验后改：先验证整体模型再写入"""
         persona = self.load_persona()
+
+        # Build proposed state with the new value (no mutation of persona object yet)
+        proposed_data = persona.model_dump()
         if "." in field:
             parts = field.split(".")
-            obj = persona
+            target = proposed_data
             for part in parts[:-1]:
-                obj = getattr(obj, part)
-            setattr(obj, parts[-1], value)
+                target = target[part]
+            target[parts[-1]] = value
         else:
-            setattr(persona, field, value)
+            proposed_data[field] = value
 
+        # Validate proposed state first - rejects illegal values before any mutation
+        validated = PersonaConfig.model_validate(proposed_data)
+
+        # Save the validated state (validated already contains correct typed values)
         with open(self.config.persona_config_path, "w", encoding="utf-8") as f:
-            json.dump(persona.model_dump(), f, ensure_ascii=False, indent=2)
+            json.dump(validated.model_dump(), f, ensure_ascii=False, indent=2)
 
         if auto_commit:
             try:
@@ -136,4 +140,6 @@ class PersonaEngine:
                 git_mgr = GitManager(data_dir=self.config.data_dir)
                 git_mgr.commit(f"persona update: {field}")
             except Exception:
-                pass  # Git commit is best-effort; don't fail the update
+                pass  # Git commit is best-effort
+
+        return validated

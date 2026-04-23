@@ -64,6 +64,22 @@ class TestGitManagerLog:
         assert "date" in log[0]
 
 
+class TestGitManagerRepoPropertyDefensive:
+    def test_repo_property_raises_without_init(self, temp_data_dir):
+        mgr = GitManager(data_dir=temp_data_dir)
+        # Do NOT call init_repo()
+        with pytest.raises(RuntimeError, match="Git repo not initialized"):
+            mgr.repo
+
+    def test_repo_property_returns_after_init(self, git_mgr):
+        assert git_mgr.repo is not None
+
+    def test_repo_property_cached(self, git_mgr):
+        repo1 = git_mgr.repo
+        repo2 = git_mgr.repo
+        assert repo1 is repo2  # same object, no re-creation
+
+
 class TestGitManagerCheckout:
     def test_checkout_restores_config(self, git_mgr, temp_data_dir):
         config_dir = os.path.join(temp_data_dir, "config")
