@@ -160,13 +160,13 @@ class TestAnalyzeEmotionTone:
 class TestInferHiddenNeeds:
     def test_negative_emotion_triggers_care_need(self, evolve_engine):
         sessions = _make_sessions(n=3, emotion_summaries=["焦虑", "压力", "难过"])
-        needs = evolve_engine._infer_hidden_needs(sessions, {}, "negative")
+        needs = evolve_engine._infer_hidden_needs(sessions, {}, {}, "negative")
         assert "需要更多关心和理解" in needs
 
     def test_repeated_topic_triggers_deep_support(self, evolve_engine):
         sessions = _make_sessions(n=5)
         topic_dist = {"工作": 3, "生活": 1}
-        needs = evolve_engine._infer_hidden_needs(sessions, topic_dist, "neutral")
+        needs = evolve_engine._infer_hidden_needs(sessions, topic_dist, {}, "neutral")
         assert any("工作" in need and "持续关注" in need for need in needs)
 
     def test_deep_conversation_ratio_triggers_resonance(self, evolve_engine):
@@ -174,7 +174,8 @@ class TestInferHiddenNeeds:
             n=4,
             interaction_types=["deep_conversation", "deep_conversation", "emotion_companion", "daily_chat"],
         )
-        needs = evolve_engine._infer_hidden_needs(sessions, {}, "neutral")
+        type_dist = {"deep_conversation": 2, "emotion_companion": 1, "daily_chat": 1}
+        needs = evolve_engine._infer_hidden_needs(sessions, {}, type_dist, "neutral")
         assert "倾向深度交流，需要情感共鸣" in needs
 
     def test_light_chat_ratio_triggers_happiness(self, evolve_engine):
@@ -182,7 +183,8 @@ class TestInferHiddenNeeds:
             n=4,
             interaction_types=["light_chat", "light_chat", "light_chat", "daily_chat"],
         )
-        needs = evolve_engine._infer_hidden_needs(sessions, {}, "neutral")
+        type_dist = {"light_chat": 3, "daily_chat": 1}
+        needs = evolve_engine._infer_hidden_needs(sessions, {}, type_dist, "neutral")
         assert "倾向轻松互动，需要快乐和陪伴" in needs
 
     def test_max_five_needs(self, evolve_engine):
@@ -193,7 +195,8 @@ class TestInferHiddenNeeds:
             interaction_types=["deep_conversation"] * 7,
         )
         needs = evolve_engine._infer_hidden_needs(
-            sessions, {"a": 3, "b": 3, "c": 1, "d": 4, "e": 5}, "negative",
+            sessions, {"a": 3, "b": 3, "c": 1, "d": 4, "e": 5},
+            {"deep_conversation": 7}, "negative",
         )
         assert len(needs) <= 5
 

@@ -3,6 +3,7 @@ import logging
 import math
 import os
 import uuid
+from collections import deque
 from datetime import datetime
 
 import networkx as nx
@@ -110,10 +111,10 @@ class GraphMemoryEngine:
         # 2. BFS遍历
         visited_nodes: set[str] = set()
         visited_edges: list[GraphEdge] = []
-        queue: list[tuple[str, int]] = [(n, 0) for n in seed_nodes]
+        queue: deque[tuple[str, int]] = deque((n, 0) for n in seed_nodes)
 
         while queue and len(visited_nodes) < max_nodes:
-            node_id, depth = queue.pop(0)
+            node_id, depth = queue.popleft()
             if node_id in visited_nodes or depth > max_depth:
                 continue
             visited_nodes.add(node_id)

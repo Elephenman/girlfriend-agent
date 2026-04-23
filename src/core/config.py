@@ -7,14 +7,6 @@ class Config:
     DATA_DIR_NAME = ".girlfriend-agent"
     SERVER_PORT = 18012
 
-    INTERACTION_TYPES = {
-        "daily_chat",
-        "deep_conversation",
-        "collaborative_task",
-        "emotion_companion",
-        "light_chat",
-    }
-
     INTIMACY_PER_TYPE = {
         "daily_chat": 1,
         "deep_conversation": 3,
@@ -22,6 +14,12 @@ class Config:
         "emotion_companion": 4,
         "light_chat": 1,
     }
+
+    INTERACTION_TYPES = set(INTIMACY_PER_TYPE.keys())
+
+    # Unified emotion keyword sets (used by evolve.py and memory.py)
+    POSITIVE_KEYWORDS = {"开心", "高兴", "快乐", "满意", "兴奋", "轻松", "愉快", "欣慰", "喜欢", "爱"}
+    NEGATIVE_KEYWORDS = {"焦虑", "难过", "压力", "担心", "沮丧", "疲惫", "烦躁", "不开心", "累", "烦", "害怕", "紧张"}
 
     ATTRIBUTE_PER_TYPE = {
         "daily_chat": {"care": 0.5, "understanding": 0.5, "expression": 0.5, "memory_attr": 0.5, "humor": 0.5, "intuition": 0.5, "courage": 0.5, "sensitivity": 0.5},
@@ -144,3 +142,10 @@ def get_config(data_dir: str | None = None) -> Config:
         if _config_instance is None or (data_dir is not None and _config_instance.data_dir != data_dir):
             _config_instance = Config(data_dir)
     return _config_instance
+
+
+def reset_config() -> None:
+    """Reset the global config singleton (for test cleanup)"""
+    global _config_instance
+    with _config_lock:
+        _config_instance = None

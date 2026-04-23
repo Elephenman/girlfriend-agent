@@ -1,6 +1,7 @@
 import math
 import uuid
 from datetime import datetime
+from typing import ClassVar
 
 from pydantic import BaseModel, Field, field_validator
 
@@ -110,6 +111,19 @@ class SessionMemory(BaseModel):
     intimacy_gained: int = 0
     timestamp: str = Field(default_factory=lambda: datetime.now().isoformat())
 
+    # Cache valid interaction types as class attribute (not a Pydantic field)
+    VALID_INTERACTION_TYPES: ClassVar[set[str]] = set()
+
+    @field_validator("interaction_type")
+    @classmethod
+    def validate_interaction_type(cls, v: str) -> str:
+        if not cls.VALID_INTERACTION_TYPES:
+            from src.core.config import Config
+            cls.VALID_INTERACTION_TYPES = set(Config.INTIMACY_PER_TYPE.keys())
+        if v not in cls.VALID_INTERACTION_TYPES:
+            raise ValueError(f"interaction_type must be one of {cls.VALID_INTERACTION_TYPES}, got '{v}'")
+        return v
+
 
 class EvolutionLogEntry(BaseModel):
     trigger: str
@@ -125,13 +139,17 @@ class ChatRequest(BaseModel):
     level: int = Field(ge=1, le=3)
     interaction_type: str = "daily_chat"
 
+    # Cache valid interaction types as class attribute (not a Pydantic field)
+    VALID_INTERACTION_TYPES: ClassVar[set[str]] = set()
+
     @field_validator("interaction_type")
     @classmethod
     def validate_interaction_type(cls, v: str) -> str:
-        from src.core.config import Config
-        valid_types = set(Config.INTIMACY_PER_TYPE.keys())
-        if v not in valid_types:
-            raise ValueError(f"interaction_type must be one of {valid_types}, got '{v}'")
+        if not cls.VALID_INTERACTION_TYPES:
+            from src.core.config import Config
+            cls.VALID_INTERACTION_TYPES = set(Config.INTIMACY_PER_TYPE.keys())
+        if v not in cls.VALID_INTERACTION_TYPES:
+            raise ValueError(f"interaction_type must be one of {cls.VALID_INTERACTION_TYPES}, got '{v}'")
         return v
 
 

@@ -179,18 +179,17 @@ class MemoryEngine:
         if not os.path.isdir(sm_dir):
             return []
 
-        files = sorted(
-            [f for f in os.listdir(sm_dir) if f.endswith(".json")],
-            key=lambda f: os.path.getmtime(os.path.join(sm_dir, f)),
-            reverse=True,
-        )[:count]
-
         sessions = []
-        for fname in files:
+        for fname in os.listdir(sm_dir):
+            if not fname.endswith(".json"):
+                continue
             with open(os.path.join(sm_dir, fname), encoding="utf-8") as f:
                 data = json.load(f)
             sessions.append(SessionMemory(**data))
-        return sessions
+
+        # Sort by session timestamp, not file modification time
+        sessions.sort(key=lambda s: s.timestamp, reverse=True)
+        return sessions[:count]
 
     def cleanup_old_sessions(self, keep: int = 10) -> None:
         sm_dir = self.config.session_memory_dir
@@ -219,8 +218,8 @@ class MemoryEngine:
             return {"trend": "neutral", "recent_emotions": [], "summary": ""}
 
         # 简单情绪分类
-        positive_keywords = {"开心", "高兴", "快乐", "满意", "兴奋", "轻松", "愉快", "欣慰"}
-        negative_keywords = {"焦虑", "难过", "压力", "担心", "沮丧", "疲惫", "烦躁", "不开心", "累"}
+        positive_keywords = Config.POSITIVE_KEYWORDS
+        negative_keywords = Config.NEGATIVE_KEYWORDS
 
         recent = emotions[-5:]  # 最近5次
         pos_count = sum(1 for e in recent if any(k in e for k in positive_keywords))

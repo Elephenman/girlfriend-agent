@@ -7,9 +7,8 @@ from src.core.git_manager import GitManager
 from src.core.models import (
     RelationshipState, DeAiDimensions,
     EvolutionLogEntry, SessionMemory, PersonaConfig,
-    ObservationPattern, EvolutionState,
+    ObservationPattern, EvolutionState, _clamp,
 )
-from src.core.persona import _clamp
 
 
 class EvolveEngine:
@@ -58,7 +57,7 @@ class EvolveEngine:
 
         # Deduct the threshold points for the new level
         threshold = Config.LEVEL_THRESHOLDS[new_level]
-        updates["intimacy_points"] = state.intimacy_points - threshold
+        updates["intimacy_points"] = max(0, state.intimacy_points - threshold)
 
         # Level up: distribute 3 bonus attribute points via auto-allocation
         attrs = state.attributes.model_copy()
@@ -195,7 +194,7 @@ class EvolveEngine:
         emotion_tone = self._analyze_emotion_tone(sessions)
 
         # 4. 隐性需求推断
-        hidden_needs = self._infer_hidden_needs(sessions, topic_dist, emotion_tone)
+        hidden_needs = self._infer_hidden_needs(sessions, topic_dist, type_dist, emotion_tone)
 
         # 5. 生成摘要
         top_topics = sorted(topic_dist.items(), key=lambda x: x[1], reverse=True)[:3]
@@ -219,8 +218,8 @@ class EvolveEngine:
 
     def _analyze_emotion_tone(self, sessions: list[SessionMemory]) -> str:
         """分析情绪基调"""
-        positive_kw = {"开心", "高兴", "快乐", "满意", "兴奋", "轻松", "愉快", "欣慰", "喜欢", "爱"}
-        negative_kw = {"焦虑", "难过", "压力", "担心", "沮丧", "疲惫", "烦躁", "不开心", "累", "烦", "害怕", "紧张"}
+        positive_kw = Config.POSITIVE_KEYWORDS
+        negative_kw = Config.NEGATIVE_KEYWORDS
 
         pos = 0
         neg = 0
@@ -242,6 +241,7 @@ class EvolveEngine:
 
     def _infer_hidden_needs(self, sessions: list[SessionMemory],
                             topic_dist: dict[str, int],
+                            type_dist: dict[str, int],
                             emotion_tone: str) -> list[str]:
         """从模式和情绪中推断隐性需求"""
         needs: list[str] = []
@@ -255,12 +255,7 @@ class EvolveEngine:
             if count >= 3:
                 needs.append(f"对{topic}有持续关注，可能需要更深入的支持")
 
-        # 互动类型推断
-        type_dist: dict[str, int] = {}
-        for s in sessions:
-            t = s.interaction_type
-            type_dist[t] = type_dist.get(t, 0) + 1
-
+        # 互动类型推断（使用传入的 type_dist，避免重复计算）
         deep_ratio = (type_dist.get("deep_conversation", 0) + type_dist.get("emotion_companion", 0)) / max(len(sessions), 1)
         if deep_ratio > 0.5:
             needs.append("倾向深度交流，需要情感共鸣")
@@ -565,7 +560,7 @@ class EvolveEngine:
         try:
             # Validate commit exists
             from git import Repo
-            repo = Repo(self.git_manager.repo_path)
+            repo = self.git_manager.repo
             repo.git.cat_file("-t", commit_hash)  # will raise if hash is invalid
 
             self.git_manager.checkout(commit_hash)
@@ -612,8 +607,8 @@ class EvolveEngine:
 
         # 比较情绪
         def avg_emotion_score(sessions: list[SessionMemory]) -> float:
-            positive_kw = {"开心", "高兴", "快乐", "满意", "兴奋", "轻松"}
-            negative_kw = {"焦虑", "难过", "压力", "担心", "沮丧", "疲惫", "烦躁"}
+            positive_kw = Config.POSITIVE_KEYWORDS
+            negative_kw = Config.NEGATIVE_KEYWORDS
             scores = []
             for s in sessions:
                 emo = s.emotion_summary

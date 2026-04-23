@@ -3,7 +3,7 @@ import tempfile
 
 import pytest
 
-from src.core.config import Config
+from src.core.config import Config, reset_config
 
 
 @pytest.fixture
@@ -13,6 +13,7 @@ def temp_data_dir():
         config = Config(data_dir=data_dir)
         config.ensure_dirs()
         yield data_dir
+        reset_config()
 
 
 @pytest.fixture

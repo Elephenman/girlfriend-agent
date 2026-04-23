@@ -4,7 +4,7 @@ import shutil
 
 from src.core.config import Config
 from src.core.models import (
-    PersonaConfig, PersonalityBase, RelationshipState,
+    PersonaConfig, PersonalityBase, RelationshipState, _clamp,
 )
 
 # Attribute → Personality dimension mapping with weights
@@ -18,10 +18,6 @@ ATTR_TO_PERSONALITY_MAP: dict[str, dict[str, float]] = {
     "courage": {"stubbornness": 0.5, "proactivity": 0.3, "shyness": -0.2},
     "sensitivity": {"warmth": 0.4, "shyness": 0.3, "gentleness": 0.3},
 }
-
-
-def _clamp(v: float, lo: float = 0.0, hi: float = 1.0) -> float:
-    return max(lo, min(hi, v))
 
 
 class PersonaEngine:

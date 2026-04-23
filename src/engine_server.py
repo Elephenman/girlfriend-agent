@@ -58,7 +58,7 @@ async def lifespan(app: FastAPI):
 
     persona, relationship = _load_or_init_state(config)
     # Only save if state files don't already exist (avoid overwriting on restart)
-    if not os.path.isfile(config.persona_config_path) or not os.path.isfile(config.relationship_config_path):
+    if not os.path.isfile(config.persona_config_path) and not os.path.isfile(config.relationship_config_path):
         _save_state(config, persona, relationship)
 
     app.state.config = config
