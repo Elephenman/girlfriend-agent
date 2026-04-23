@@ -112,7 +112,8 @@ class PersonaEngine:
             return ""
         return "去AI味行为规则：" + "；".join(rules)
 
-    def update_persona_field(self, field: str, value, auto_commit: bool = True) -> None:
+    def update_persona_field(self, field: str, value, auto_commit: bool = True) -> PersonaConfig:
+        """更新 persona 字段，带 Pydantic 类型验证"""
         persona = self.load_persona()
         if "." in field:
             parts = field.split(".")
@@ -123,8 +124,11 @@ class PersonaEngine:
         else:
             setattr(persona, field, value)
 
+        # Validate the entire persona to catch type mismatches
+        validated = PersonaConfig.model_validate(persona.model_dump())
+
         with open(self.config.persona_config_path, "w", encoding="utf-8") as f:
-            json.dump(persona.model_dump(), f, ensure_ascii=False, indent=2)
+            json.dump(validated.model_dump(), f, ensure_ascii=False, indent=2)
 
         if auto_commit:
             try:
@@ -132,4 +136,6 @@ class PersonaEngine:
                 git_mgr = GitManager(data_dir=self.config.data_dir)
                 git_mgr.commit(f"persona update: {field}")
             except Exception:
-                pass  # Git commit is best-effort; don't fail the update
+                pass  # Git commit is best-effort
+
+        return validated

@@ -12,6 +12,7 @@ from src.core.evolve import EvolveEngine
 from src.core.git_manager import GitManager
 from src.core.graph_memory import GraphMemoryEngine
 from src.core.episodic_builder import EpisodicBuilder
+from src.core.state_manager import StateManager
 from src.core.models import PersonaConfig, RelationshipState
 
 from src.api.chat_router import router as chat_router
@@ -23,19 +24,25 @@ from src.api.rollback_router import router as rollback_router
 
 
 def _load_or_init_state(config: Config) -> tuple[PersonaConfig, RelationshipState]:
+    # Load or self-heal persona
     if os.path.isfile(config.persona_config_path):
         with open(config.persona_config_path, encoding="utf-8") as f:
-            persona_data = json.load(f)
-        persona = PersonaConfig(**persona_data)
+            persona = PersonaConfig(**json.load(f))
     else:
         persona = PersonaConfig()
+        os.makedirs(os.path.dirname(config.persona_config_path), exist_ok=True)
+        with open(config.persona_config_path, "w", encoding="utf-8") as f:
+            json.dump(persona.model_dump(), f, ensure_ascii=False, indent=2)
 
+    # Load or self-heal relationship
     if os.path.isfile(config.relationship_config_path):
         with open(config.relationship_config_path, encoding="utf-8") as f:
-            rel_data = json.load(f)
-        relationship = RelationshipState(**rel_data)
+            relationship = RelationshipState(**json.load(f))
     else:
         relationship = RelationshipState()
+        os.makedirs(os.path.dirname(config.relationship_config_path), exist_ok=True)
+        with open(config.relationship_config_path, "w", encoding="utf-8") as f:
+            json.dump(relationship.model_dump(), f, ensure_ascii=False, indent=2)
 
     return persona, relationship
 
@@ -56,10 +63,10 @@ async def lifespan(app: FastAPI):
     git_mgr = GitManager(data_dir=config.data_dir)
     git_mgr.init_repo()
 
+    state_mgr = StateManager(config)
+
     persona, relationship = _load_or_init_state(config)
-    # Only save if state files don't already exist (avoid overwriting on restart)
-    if not os.path.isfile(config.persona_config_path) and not os.path.isfile(config.relationship_config_path):
-        _save_state(config, persona, relationship)
+    # _load_or_init_state handles self-heal saving internally
 
     app.state.config = config
     app.state.persona = persona
@@ -68,6 +75,7 @@ async def lifespan(app: FastAPI):
     app.state.memory_engine = MemoryEngine(config)
     app.state.evolve_engine = EvolveEngine(config, git_mgr)
     app.state.git_manager = git_mgr
+    app.state.state_manager = state_mgr
     app.state.graph_engine = GraphMemoryEngine(config)
     app.state.episodic_builder = EpisodicBuilder(config, app.state.graph_engine)
 

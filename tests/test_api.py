@@ -7,7 +7,7 @@ import pytest
 from httpx import ASGITransport, AsyncClient
 
 from src.core.config import Config
-from src.core.models import PersonaConfig, RelationshipState
+from src.core.models import PersonaConfig, PersonalityBase, RelationshipState
 from src.engine_server import app, _load_or_init_state, _save_state
 
 
@@ -23,9 +23,12 @@ def setup_test_env():
         from src.core.persona import PersonaEngine
         from src.core.memory import MemoryEngine
         from src.core.evolve import EvolveEngine
+        from src.core.state_manager import StateManager
 
         git_mgr = GitManager(data_dir=config.data_dir)
         git_mgr.init_repo()
+
+        state_mgr = StateManager(config)
 
         app.state.config = config
         app.state.persona = PersonaConfig()
@@ -34,6 +37,7 @@ def setup_test_env():
         app.state.memory_engine = MemoryEngine(config)
         app.state.evolve_engine = EvolveEngine(config, git_mgr)
         app.state.git_manager = git_mgr
+        app.state.state_manager = state_mgr
 
         yield config
     finally:
@@ -114,3 +118,47 @@ async def test_persona_apply_template(setup_test_env):
         assert resp.status_code == 200
         data = resp.json()
         assert data["status"] == "ok"
+
+
+class TestLoadOrInitStateSelfHeal:
+    def test_persona_only_missing_self_heals(self, temp_data_dir):
+        config = Config(data_dir=temp_data_dir)
+        config.ensure_dirs()
+        # Create relationship.json only
+        with open(config.relationship_config_path, "w", encoding="utf-8") as f:
+            json.dump(RelationshipState().model_dump(), f)
+        persona, relationship = _load_or_init_state(config)
+        # persona.json should now exist (self-healed)
+        assert os.path.isfile(config.persona_config_path)
+        assert isinstance(persona, PersonaConfig)
+
+    def test_relationship_only_missing_self_heals(self, temp_data_dir):
+        config = Config(data_dir=temp_data_dir)
+        config.ensure_dirs()
+        # Create persona.json only
+        with open(config.persona_config_path, "w", encoding="utf-8") as f:
+            json.dump(PersonaConfig().model_dump(), f)
+        persona, relationship = _load_or_init_state(config)
+        assert os.path.isfile(config.relationship_config_path)
+        assert isinstance(relationship, RelationshipState)
+
+    def test_both_missing_creates_both(self, temp_data_dir):
+        config = Config(data_dir=temp_data_dir)
+        config.ensure_dirs()
+        persona, relationship = _load_or_init_state(config)
+        assert os.path.isfile(config.persona_config_path)
+        assert os.path.isfile(config.relationship_config_path)
+
+    def test_both_exist_no_overwrite(self, temp_data_dir):
+        config = Config(data_dir=temp_data_dir)
+        config.ensure_dirs()
+        # Create both with non-default data
+        custom_persona = PersonaConfig(personality_base=PersonalityBase(warmth=0.9))
+        with open(config.persona_config_path, "w", encoding="utf-8") as f:
+            json.dump(custom_persona.model_dump(), f)
+        custom_rel = RelationshipState(current_level=2, intimacy_points=30)
+        with open(config.relationship_config_path, "w", encoding="utf-8") as f:
+            json.dump(custom_rel.model_dump(), f)
+        persona, relationship = _load_or_init_state(config)
+        assert persona.personality_base.warmth == 0.9
+        assert relationship.current_level == 2

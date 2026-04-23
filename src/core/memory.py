@@ -144,7 +144,7 @@ class MemoryEngine:
         return math.sqrt(access_count + 1) * math.exp(-decay_lambda * days)
 
     def decay_all_weights(self) -> None:
-        """基于真实天数的精确衰减（替代简单百分比衰减）"""
+        """基于真实天数的精确衰减（批量更新替代逐条更新）"""
         if self.collection.count() == 0:
             return
 
@@ -153,7 +153,7 @@ class MemoryEngine:
         all_metas = all_data["metadatas"]
         now = datetime.now()
 
-        for chunk_id, meta in zip(all_ids, all_metas):
+        for meta in all_metas:
             created = meta.get("created_date", now.strftime("%Y-%m-%d"))
             try:
                 days = (now - datetime.strptime(created, "%Y-%m-%d")).days
@@ -163,8 +163,8 @@ class MemoryEngine:
             new_weight = self.compute_weight(days=days, access_count=access_count)
             meta["weight"] = str(max(new_weight, 0.01))
 
-        for chunk_id, meta in zip(all_ids, all_metas):
-            self.collection.update(ids=[chunk_id], metadatas=[meta])
+        # Single batch update instead of N individual updates
+        self.collection.update(ids=all_ids, metadatas=all_metas)
 
     def save_session(self, session: SessionMemory) -> None:
         path = os.path.join(
@@ -174,18 +174,34 @@ class MemoryEngine:
         with open(path, "w", encoding="utf-8") as f:
             json.dump(session.model_dump(), f, ensure_ascii=False, indent=2)
 
+    MAX_SESSION_FILES = 500  # Safety limit for file scanning
+
     def load_recent_sessions(self, count: int = 10) -> list[SessionMemory]:
         sm_dir = self.config.session_memory_dir
         if not os.path.isdir(sm_dir):
             return []
 
+        # Safety: limit number of files scanned to prevent memory/time blow-up
+        json_files = [f for f in os.listdir(sm_dir) if f.endswith(".json")]
+        if len(json_files) > self.MAX_SESSION_FILES:
+            logging.warning(
+                "Session directory has %d files (limit %d). Only scanning newest by filename.",
+                len(json_files), self.MAX_SESSION_FILES,
+            )
+            # Rough pre-filter: sort by filename (often contains timestamp) descending
+            json_files.sort(reverse=True)
+            json_files = json_files[:self.MAX_SESSION_FILES]
+
         sessions = []
-        for fname in os.listdir(sm_dir):
-            if not fname.endswith(".json"):
+        for fname in json_files:
+            fpath = os.path.join(sm_dir, fname)
+            try:
+                with open(fpath, encoding="utf-8") as f:
+                    data = json.load(f)
+                sessions.append(SessionMemory(**data))
+            except (json.JSONDecodeError, Exception) as e:
+                logging.warning("Skipping corrupt session file %s: %s", fname, e)
                 continue
-            with open(os.path.join(sm_dir, fname), encoding="utf-8") as f:
-                data = json.load(f)
-            sessions.append(SessionMemory(**data))
 
         # Sort by session timestamp, not file modification time
         sessions.sort(key=lambda s: s.timestamp, reverse=True)
@@ -197,14 +213,32 @@ class MemoryEngine:
             return
 
         try:
-            files = sorted(
-                [f for f in os.listdir(sm_dir) if f.endswith(".json")],
-                key=lambda f: os.path.getmtime(os.path.join(sm_dir, f)),
-                reverse=True,
-            )
+            sessions = []
+            for fname in os.listdir(sm_dir):
+                if not fname.endswith(".json"):
+                    continue
+                fpath = os.path.join(sm_dir, fname)
+                try:
+                    with open(fpath, encoding="utf-8") as f:
+                        data = json.load(f)
+                    session = SessionMemory(**data)
+                    sessions.append((session.timestamp, fname))
+                except (json.JSONDecodeError, Exception):
+                    # Corrupt file - remove it
+                    try:
+                        os.remove(fpath)
+                    except OSError:
+                        pass
 
-            for fname in files[keep:]:
-                os.remove(os.path.join(sm_dir, fname))
+            # Sort by session timestamp, consistent with load_recent_sessions
+            sessions.sort(key=lambda x: x[0], reverse=True)
+
+            # Remove files beyond the keep limit
+            for _, fname in sessions[keep:]:
+                try:
+                    os.remove(os.path.join(sm_dir, fname))
+                except OSError:
+                    pass
         except Exception as e:
             logging.warning("Failed to cleanup old sessions: %s", e)
 

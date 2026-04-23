@@ -1,17 +1,9 @@
 # src/api/chat_router.py
-import json
-import os
-
 from fastapi import APIRouter, Request
 
 from src.core.models import ChatRequest, ChatResponse
 
 router = APIRouter()
-
-
-def _save_relationship(config, relationship):
-    with open(config.relationship_config_path, "w", encoding="utf-8") as f:
-        json.dump(relationship.model_dump(), f, ensure_ascii=False, indent=2)
 
 
 @router.post("/chat", response_model=ChatResponse)
@@ -20,7 +12,6 @@ async def chat(req: ChatRequest, request: Request):
     persona_engine = app.state.persona_engine
     memory_engine = app.state.memory_engine
     evolve_engine = app.state.evolve_engine
-    config = app.state.config
 
     persona = app.state.persona
     relationship = app.state.relationship
@@ -53,7 +44,7 @@ async def chat(req: ChatRequest, request: Request):
 
     # Save updated state
     app.state.relationship = relationship
-    _save_relationship(config, relationship)
+    app.state.state_manager.persist_relationship(app)
 
     return ChatResponse(
         persona_prompt=full_prompt,

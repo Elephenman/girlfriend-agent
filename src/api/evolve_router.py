@@ -1,10 +1,7 @@
 # src/api/evolve_router.py
-import json
-import os
-
 from fastapi import APIRouter, Request
 
-from src.core.models import SessionMemory, RelationshipState
+from src.core.models import SessionMemory
 
 router = APIRouter()
 
@@ -14,7 +11,6 @@ async def evolve(request: Request):
     app = request.app
     evolve_engine = app.state.evolve_engine
     memory_engine = app.state.memory_engine
-    config = app.state.config
     relationship = app.state.relationship
 
     sessions = memory_engine.load_recent_sessions(count=7)
@@ -25,8 +21,7 @@ async def evolve(request: Request):
     relationship, log_entry = evolve_engine.run_evolution_cycle(sessions, relationship)
 
     app.state.relationship = relationship
-    with open(config.relationship_config_path, "w", encoding="utf-8") as f:
-        json.dump(relationship.model_dump(), f, ensure_ascii=False, indent=2)
+    app.state.state_manager.persist_relationship(app)
 
     return {
         "adjustments": log_entry.adjustments,
@@ -44,13 +39,7 @@ async def revert_evolution(request: Request):
     result = evolve_engine.revert_last_evolution()
 
     if result["success"]:
-        # 重新加载 relationship state
-        config = request.app.state.config
-        rel_path = config.relationship_config_path
-        if os.path.exists(rel_path):
-            with open(rel_path, encoding="utf-8") as f:
-                rel_data = json.load(f)
-            request.app.state.relationship = RelationshipState(**rel_data)
+        request.app.state.state_manager.reload_all(request.app)
 
     return result
 
@@ -65,12 +54,7 @@ async def revert_to_version(request: Request):
     result = evolve_engine.revert_to_version(commit_hash)
 
     if result["success"]:
-        config = request.app.state.config
-        rel_path = config.relationship_config_path
-        if os.path.exists(rel_path):
-            with open(rel_path, encoding="utf-8") as f:
-                rel_data = json.load(f)
-            request.app.state.relationship = RelationshipState(**rel_data)
+        request.app.state.state_manager.reload_all(request.app)
 
     return result
 

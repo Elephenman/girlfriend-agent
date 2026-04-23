@@ -12,7 +12,7 @@ class TestPersonalityBase:
         pb = PersonalityBase()
         assert pb.warmth == 0.5
         assert pb.humor == 0.5
-        assert all(0.0 <= getattr(pb, f) <= 1.0 for f in pb.model_fields)
+        assert all(0.0 <= getattr(pb, f) <= 1.0 for f in PersonalityBase.model_fields)
 
     def test_clamp_on_creation(self):
         pb = PersonalityBase(warmth=1.5, humor=-0.3)
@@ -52,7 +52,7 @@ class TestPersonaConfig:
 class TestAttributePoints:
     def test_default_all_zero(self):
         ap = AttributePoints()
-        for field in ap.model_fields:
+        for field in AttributePoints.model_fields:
             assert getattr(ap, field) == 0
 
     def test_clamp_0_100(self):
@@ -157,3 +157,14 @@ class TestMemoryUpdateRequest:
         assert mur.content == "用户喜欢猫"
         assert mur.memory_type == "fact"
         assert mur.metadata == {}
+
+
+class TestMemoryUpdateRequestValidation:
+    def test_valid_memory_types(self):
+        for mt in ["fact", "preference", "event", "emotion"]:
+            mur = MemoryUpdateRequest(content="test", memory_type=mt)
+            assert mur.memory_type == mt
+
+    def test_invalid_memory_type_raises(self):
+        with pytest.raises(Exception):
+            MemoryUpdateRequest(content="test", memory_type="random_string")

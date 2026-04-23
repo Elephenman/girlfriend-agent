@@ -6,6 +6,18 @@ from typing import ClassVar
 from pydantic import BaseModel, Field, field_validator
 
 
+# Module-level shared cache for valid interaction types (derived from Config at import time)
+_VALID_INTERACTION_TYPES: set[str] = set()
+
+
+def _init_valid_interaction_types() -> set[str]:
+    """Lazy init: populate the shared cache on first access."""
+    if not _VALID_INTERACTION_TYPES:
+        from src.core.config import Config
+        _VALID_INTERACTION_TYPES.update(Config.INTIMACY_PER_TYPE.keys())
+    return _VALID_INTERACTION_TYPES
+
+
 def _clamp(v: float, lo: float = 0.0, hi: float = 1.0) -> float:
     return max(lo, min(hi, v))
 
@@ -111,17 +123,12 @@ class SessionMemory(BaseModel):
     intimacy_gained: int = 0
     timestamp: str = Field(default_factory=lambda: datetime.now().isoformat())
 
-    # Cache valid interaction types as class attribute (not a Pydantic field)
-    VALID_INTERACTION_TYPES: ClassVar[set[str]] = set()
-
     @field_validator("interaction_type")
     @classmethod
     def validate_interaction_type(cls, v: str) -> str:
-        if not cls.VALID_INTERACTION_TYPES:
-            from src.core.config import Config
-            cls.VALID_INTERACTION_TYPES = set(Config.INTIMACY_PER_TYPE.keys())
-        if v not in cls.VALID_INTERACTION_TYPES:
-            raise ValueError(f"interaction_type must be one of {cls.VALID_INTERACTION_TYPES}, got '{v}'")
+        valid = _init_valid_interaction_types()
+        if v not in valid:
+            raise ValueError(f"interaction_type must be one of {valid}, got '{v}'")
         return v
 
 
@@ -139,17 +146,12 @@ class ChatRequest(BaseModel):
     level: int = Field(ge=1, le=3)
     interaction_type: str = "daily_chat"
 
-    # Cache valid interaction types as class attribute (not a Pydantic field)
-    VALID_INTERACTION_TYPES: ClassVar[set[str]] = set()
-
     @field_validator("interaction_type")
     @classmethod
     def validate_interaction_type(cls, v: str) -> str:
-        if not cls.VALID_INTERACTION_TYPES:
-            from src.core.config import Config
-            cls.VALID_INTERACTION_TYPES = set(Config.INTIMACY_PER_TYPE.keys())
-        if v not in cls.VALID_INTERACTION_TYPES:
-            raise ValueError(f"interaction_type must be one of {cls.VALID_INTERACTION_TYPES}, got '{v}'")
+        valid = _init_valid_interaction_types()
+        if v not in valid:
+            raise ValueError(f"interaction_type must be one of {valid}, got '{v}'")
         return v
 
 
@@ -161,9 +163,20 @@ class ChatResponse(BaseModel):
 
 
 class MemoryUpdateRequest(BaseModel):
+    VALID_MEMORY_TYPES: ClassVar[set[str]] = {"fact", "preference", "event", "emotion"}
+
     content: str
     memory_type: str = "fact"
     metadata: dict = Field(default_factory=dict)
+
+    @field_validator("memory_type")
+    @classmethod
+    def validate_memory_type(cls, v: str) -> str:
+        if v not in cls.VALID_MEMORY_TYPES:
+            raise ValueError(
+                f"memory_type must be one of {cls.VALID_MEMORY_TYPES}, got '{v}'"
+            )
+        return v
 
 
 class GraphNode(BaseModel):

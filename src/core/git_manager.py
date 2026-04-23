@@ -12,8 +12,13 @@ class GitManager:
 
     @property
     def repo(self) -> Repo:
-        """Cached Repo object - re-created after init_repo"""
+        """Cached Repo object - raises if repo not initialized"""
         if self._repo is None:
+            if not os.path.isdir(os.path.join(self.repo_path, ".git")):
+                raise RuntimeError(
+                    f"Git repo not initialized at {self.repo_path}. "
+                    "Call init_repo() first."
+                )
             self._repo = Repo(self.repo_path)
         return self._repo
 
