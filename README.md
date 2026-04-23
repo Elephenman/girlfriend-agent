@@ -362,7 +362,7 @@ MIT License — feel free to use, modify, and distribute.
 
 <div align="center">
 
-### 🌸 繁体中文版请见下方
+### 🌸 中文版请见下方
 
 </div>
 
