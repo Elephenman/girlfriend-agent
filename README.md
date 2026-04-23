@@ -266,72 +266,48 @@ Lv0 ──10──→ Lv1 ──30──→ Lv2 ──60──→ Lv3 ──100�
 ```
 weight = √(access_count + 1) × e^(-λ × days)
 
-Reinforcement:
-  - Hit reinforcement:    +0.1 (retrieved in search)
-  - Recall reinforcement: +0.2 (explicitly referenced)
-  - Path reinforcement:   weighted by graph traversal depth
-
-Decay:
-  - Batch update with pre-validation + per-item fallback
-  - Performance monitoring with timing logs
-  - Configurable λ (default: 0.05 for vector, 0.03 for graph)
-```
-
 ---
 
-## 🏗️ Architecture
+## 🧩 Claude Code Plugin
 
-### Project Structure
+girlfriend-agent can be used as a **Claude Code plugin** — skills + slash commands + MCP tools + session hooks, all in one package.
+
+### Plugin Structure
 
 ```
-src/
-├── engine_server.py            # FastAPI entry point + lifespan + asyncio.Lock
-├── mcp_server.py               # MCP Server adapter (26 tools, stdio transport)
-├── core/
-│   ├── models.py               # Pydantic data models + field validators
-│   ├── config.py               # Paths, constants (INTERACTION_TYPES auto-derived), init
-│   ├── persona.py              # Persona engine (pre-validate → mutate → persist)
-│   ├── memory.py               # Memory engine (ChromaDB + JSON + progressive injection)
-│   ├── graph_memory.py         # Graph engine (NetworkX + inverted index + CQRS)
-│   ├── episodic_builder.py     # Episodic builder (entity extraction + graph construction)
-│   ├── evolve.py               # Evolution engine (observe/adjust/direction/revert)
-│   ├── chat_service.py         # Chat service (mutate_state + build_context separation)
-│   ├── state_manager.py        # State manager (save/load/load_or_init/reload_all/persist)
-│   └── git_manager.py          # Git rollback with cached Repo + defensive checks
-├── api/
-│   ├── chat_router.py          # Chat endpoint (Lock-guarded mutations via ChatService)
-│   ├── evolve_router.py        # Evolution endpoints (Lock + read-only documented)
-│   ├── graph_router.py         # Graph endpoints (Pydantic models + idempotent operations)
-│   ├── memory_router.py        # Memory endpoints (Pydantic models for reinforce/trend)
-│   ├── persona_router.py       # Persona CRUD
-│   ├── rollback_router.py      # Rollback via StateManager
-│   └── status_router.py        # Relationship status
-├── templates/                  # 6 persona JSON templates
-├── prompts/                    # 7 level prompt templates (Lv0~Lv6)
-└── endings/                    # 56 ending descriptions
-skills/
-├── SKILL.md                    # Skill declaration
-└── scripts/                    # CLI bridge scripts (chat/status/evolve/update)
-tests/
-├── test_api.py                 # API integration + graph+chat integration
-├── test_concurrency.py         # asyncio.Lock concurrency verification
-├── test_state_manager.py       # StateManager unit tests (11 tests)
-├── test_full_chain.py          # End-to-end chain (chat→memory→evolve→rollback)
-├── test_*.py                   # Module-level tests (612 total)
+.claude-plugin/plugin.json        # Plugin manifest
+.mcp.json                         # MCP server config (stdio transport)
+skills/                           # 7 skills with SKILL.md
+├── gf-intro/                     # Introduction skill (auto-injected on session start)
+├── gf-chat/                      # Chat skill
+├── gf-status/                    # Status skill
+├── gf-evolve/                    # Evolution skill
+├── gf-memory/                    # Memory skill
+├── gf-persona/                   # Persona skill
+├── gf-graph/                     # Graph skill
+└── scripts/                      # CLI bridge scripts (backup interface)
+commands/                         # Slash commands
+├── gf-chat.md                    # /gf-chat
+├── gf-status.md                  # /gf-status
+├── gf-evolve.md                  # /gf-evolve
+├── gf-memory.md                  # /gf-memory
+├── gf-persona.md                 # /gf-persona
+└── gf-graph.md                   # /gf-graph
+agents/                           # Agent definitions
+└── girlfriend-persona.md         # Character response agent
+hooks/                            # Session hooks
+├── hooks.json                    # Hook configuration
+├── session-start                 # Context injection on startup
+└── run-hook.cmd                  # Windows/Unix polyglot wrapper
 ```
 
-### Design Patterns
+### Using in Claude Code
 
-| Pattern | Where | Purpose |
-|---|---|---|
-| **CQRS** | `graph_memory.py` | `get_node_info` (query) vs `touch_node` (command) |
-| **Lock-per-mutation** | `chat_router.py`, `evolve_router.py` | Lock only around state changes, reads are lock-free |
-| **Pre-validate → mutate** | `persona.py` | Validate before setattr, no intermediate illegal state |
-| **Self-heal** | `state_manager.py` | `load_or_init_*` auto-creates defaults when files missing |
-| **Batch + fallback** | `memory.py` | Batch update first, per-item fallback on failure |
-| **Inverted index** | `graph_memory.py` | Label substring index for O(1) seed node lookup |
-| **Idempotent endpoints** | `graph_router.py` | Duplicate entity returns existing ID, duplicate edge strengthens |
-| **TypedDict returns** | `chat_service.py` | `ChatContext` TypedDict for IDE type hints |
+1. Add this repo as a plugin in Claude Code settings
+2. The MCP server starts automatically (via `.mcp.json`)
+3. On session start, the `gf-intro` skill content is injected as context
+4. Use slash commands: `/gf-chat`, `/gf-status`, `/gf-evolve`, `/gf-memory`, `/gf-persona`, `/gf-graph`
+5. All 26 MCP tools are available: `chat_girlfriend`, `status_girlfriend`, `evolve_run_girlfriend`, etc.
 
 ---
 
